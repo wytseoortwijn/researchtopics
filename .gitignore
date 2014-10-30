@@ -1,7 +1,6 @@
 *
-
 !.gitignore
 !*.tex
+!*.png
 !*.md
-!images/*.png
-!tikz/*.tex
+!*/

@@ -1,0 +1,15 @@
+\begin{tikzpicture}
+\node[circle, thick, draw] (v4) at (0.25,3) {$x_0$};
+\node[circle, thick, draw] (v1) at (-0.5,1.5) {$x_1$};
+\node[circle, thick, draw] (v5) at (1,1.5) {$x_1$};
+\node[rectangle, thick, draw] (v2) at (-0.5,0) {$1$};
+\node[rectangle, thick, draw] (v3) at (1,0) {$0$};
+
+\draw[->, thick]  (v1) edge (v2);
+\draw[->, thick, dashed]  (v1) edge (v3);
+\draw[->, thick]  (v4) edge (v1);
+\draw[->, thick, dashed]  (v4) edge (v5);
+\draw[->, thick]  (v5) edge (v2);
+\draw[->, thick, dashed]  (v5) edge (v3);
+
+\end{tikzpicture}

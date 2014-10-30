@@ -1,0 +1,26 @@
+\begin{tikzpicture}
+\node[circle, thick, draw] (v1) at (-0.2,0.8) {$p_1$};
+\node[circle, thick, draw] (v3) at (1,0.8) {$p_2$};
+\node (v7) at (2,0.8) {$\dots$};
+\node at (2,-0.4) {$\dots$};
+\node[circle, thick, draw] (v5) at (3,0.8) {$p_n$};
+
+\node (v2) at (-0.2,-0.11) {};
+\node (v4) at (1,-0.11) {};
+\node (v6) at (3,-0.11) {};
+
+\draw[thick] (-0.6,0) rectangle (0.2,-1);
+\draw[thick]  (0.6,0) rectangle (1.4,-1);
+\draw[thick]  (2.6,0) rectangle (3.4,-1);
+
+\draw[<->, thick]  (v1) edge (v2);
+\draw[<->, thick]  (v3) edge (v4);
+\draw[<->, thick]  (v5) edge (v6);
+
+\draw[<->, dashed]  (v1) edge (v3);
+\draw[<->, dashed]  (v3) edge (v7);
+\draw[<->, dashed]  (v7) edge (v5);
+\draw[<->, dashed]  (v3) edge [bend left=40 ] (v5) ;
+\draw[<->, dashed]  (v1) edge [bend left=60 ] (v5);
+
+\end{tikzpicture}
