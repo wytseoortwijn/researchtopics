@@ -1,0 +1,26 @@
+\chapter{Introduction}
+This document will contain a project plan for the graduation project of Wytse Oortwijn. This project will attempt to implement BDD operations for multicore clusters. 
+
+\section{Project Title}
+RDMA-Based Implementation of BDD Operations for Multicore Clusters.
+
+\section{Project Committee}
+The project committe will consist of the following members.
+\begin{itemize}
+	\item prof.dr. J.C. van de Pol
+	\item dr. S.C.C. Blom
+	\item T. van Dijk MSc
+\end{itemize}
+
+\section{Keywords}
+Multi-core programming, Distributed programming, Binary Decision Diagrams, Performance, High Performance Computing, Heterogeneous programming.
+
+\section{Abstract (is old, needs to be rewritten...)}
+In the field of program validation one often wants to show that a software program satisfies its requirements. One way of verifying a software program is to generate all reachable program states and check if one of those states is faulty. This important process is known as reachability analysis, as the program is analysed based on all reachable states. It often happens that a program contains so many states that they do not fit into the memory of a (single) computer. This problem is known as the state space explosion problem. Several techniques have been used to minimize this problem. One of these techniques is known as distributed computing, in which the combined resources of a network of computers is used.
+
+One of the biggest bottlenecks of distributed verification and distributed model checking is the network latency. In the last couple of years a lot of research has been done on high-performance distributed computing by using RDMA (Remote Direct Memory Access) to increase throughput and decrease the latency of a network. The idea of RDMA is that a computer can directly read and write into the memory of another computer, while not invoking the CPU on that computer. As a result, multiple distributed key-value stores have been designed (for example FaRM and Pilaf) that can handle up to 75 million network operations per second. 
+
+The goal of this project is to check if RDMA can be used to increase the performance of several distributed verification algorithms, like reachability analysis. By reducing the latency and increasing the throughput of the network, one can considerably speedup distributed computations, perhaps even to the point where parallel and distributed computations can effectively be combined to create heterogenous algorithms. The second goal of the project is to check if parallel and distributed computations can effectively be combined by using RDMA to reduce communication overhead.
+
+\section{Structure}
+This document is structured as follows...

@@ -1,0 +1,35 @@
+\chapter{Measurement Plan}
+
+The research project will have two phases in which measurements will be performed. First we will microbenchmark the implementation of the distributed hash table. Secondly we will benchmark the actual implementation of the BDD operations. Finally we will discuss the results to give an answer to the research questions. If time permits the implementation will be improved and the benchmarks will be run, so that the rate of improvement can be measured. 
+
+This section provides detailed information about the measurement procedures during the research project.
+
+\section{Microbenchmarking the Distributed Hash Table}
+After the implementation phase the distributed hash table will be benchmarked. By doing that, the throughput of the hash table can be measured before the actual BDD operations are implemented on it. Measuring the throughput is important since it gives a good indication of how efficient the BDD operations will become. Earlier work pointed out that exposing large regions of memory with RDMA can cause performance drops due to caching problems. These kinds of problems can easily be found by running microbenchmarks.
+
+The goal is to measure the throughput and latency of the \textit{get} and \textit{put} operations, both on local and remote memory. By doing that the latency of remote operations can be compared to the latency of local operations, so it can be determined how much a bottleneck network latency will be. Such testing can be performed by executing a large number of random \textit{get} or \textit{put} operations. 
+
+It is perfectly possible to benchmark throughput and latency while incrementing the number of bytes to send, but it is already known that BDD operations are constant in size, since only a constant number of pointers are involved. So measuring the effect of network latency while increasing package size is unimportant and will thus not be benchmarked.
+
+Testing the two operations can be combined by using an existing benchmark like \emph{YCSB} in order to simulate actual usage. This gives an indication of how the hash table will perform when it is actually used.
+
+\section{Benchmarking the Implementation}
+At the end of the implementation phase the BDD operations themselves will be benchmarked. This is done by taking several existing large problems from the \emph{BEEM database} and see how well they scale when increasing the number of processing elements as well as the number of participating machines. The following aspects will be included in these measurements.
+
+\begin{itemize}
+\item{The execution time, speedup, and efficiency while increasing the number of clusters and keeping the number of processing elements constant.}
+\item{The execution time, speedup, and efficiency while increasing the number of processing elements and using only a single machine.}
+\item{The execution time, speedup, and efficiency while increasing both the number of processing elements and the number of participating machines.}
+\end{itemize}
+
+It is important to take several models from the \emph{BEEM} database that vary in structure. By looking at experiments in other papers it can be observed that some models perform better than others. This is because of their internal structure, of which the algorithm may take advantage. Thus it can be expected that some models gain excellent speedups while others gain almost nothing at all.
+
+After applying the benchmarks the results will be discussed and improvements will be either applied or noted as future work.
+
+\section{Measuring the Improvements}
+If time permits, improvements can be made based on the benchmarking results. By improving the BDD operations, it is needed to measure the rate of improvement, thus the measurement procedures must be re-applied. Then the two results can be compared in order to measure improvement. The comparison will furthermore be discussed and the process of finding improvements will repeat.
+
+\section{Hardware}
+The experiments are mainly performed on ten Intel E5520 dual-core machines, each with 24GB RAM and connected via an Infiniband network. The OS of each machine is Open-Suse. Thus the cluster consists of 20 CPU cores, 10 machines, and 240GB RAM in total.
+
+The multi-core experiments can also be performed on a 48 core machine with 128GB total memory, available at the University of Twente. 

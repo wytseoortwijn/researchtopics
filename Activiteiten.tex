@@ -1,0 +1,39 @@
+\documentclass[11pt, a4paper]{report}
+\usepackage[linesnumbered]{algorithm2e}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{chngpage}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{subfig}
+\usepackage{thmtools}
+\usepackage{tikz}
+
+\newcommand{\specialcell}[2][l] {
+  \begin{tabular}[#1]{@{}l@{}}#2\end{tabular}
+}
+
+\newtheorem{definition}{Definition}
+
+\begin{document} 
+
+\include{Titlepage}
+\tableofcontents
+
+\include{Introduction}
+\include{Motivation}
+\include{Approach}
+\include{ProjectPlanning}
+\include{MeasurePlan}
+\include{Expectations}
+\include{Communication}
+\include{ParallelModels}
+\include{HashTables}
+\include{WorkStealing}
+\include{Bdd}
+
+\bibliography{References}
+\bibliographystyle{plain}
+
+\end{document}

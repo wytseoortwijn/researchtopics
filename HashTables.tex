@@ -1,0 +1,203 @@
+\chapter{Background Information on Hash Tables}
+\textit{In this chapter hash tables are discussed.}
+
+\section{Preliminaries}
+This section contains preliminary information on hashing and hash tables.
+
+\subsection{Hash Table}
+A \emph{hash table} is a widely used data structure in the field of computer science, since inserting and deleting data can be done with amortized time complexity $\mathcal{O}(1)$ \cite{DBLP:conf/vldb/Litwin80}. A hash table $H = (b_1, \dots, b_n)$ consists of a sequence of buckets $b_i$ usually implemented as an array. We write $b_i = \perp$ if $b_i$ is not occupied and $b_i \in D$ otherwise. We assume that $\perp \not \in D$. The \emph{load-factor} of $H$ is denoted by $\alpha = \frac{m}{n}$, where $m$ is the number of items inserted in $H$, so $m = |\{ b_i \ | \ b_i \in D \}|$.
+
+A hash function $h : D \rightarrow \{ 1, \dots, n \}$ is used to map data from some domain $D$ to one of the buckets of $H$. For some $x,y \in D$ with $x \not = y$ it may happen that $h(x) = h(y)$. This is called a \emph{hash collision}. The hash function $h$ is called a \emph{perfect hash function} if $h$ is injective. Alternatively, $h$ is perfect if $$\forall x, y \in D. x \not = y \implies h(x) \not = h(y)$$ A perfect hash function is thus collision-free. In practice, the domain $D$ is unknown and $|D| \gg n$, so usually $h$ is not perfect. 
+
+A \emph{distributed hash table} is a hash table that is distributed across a network of machines. Part of this research project is to create a distributed hash table.
+
+\subsection{Hash Collisions}
+There are two ways of resolving hash collisions, namely by using \emph{chaining} or \emph{open addressing}. 
+
+\subsubsection{Chaining}
+In chaining each bucket $b_i$ is implemented as a linked list. Adding an item $x \in D$ to the hash table simply involves adding it to the linked list $b_{h(x)}$, which takes $\mathcal{O}(1)$ time. Searching and deleting data items requires the linked list to be traversed, which takes $\Omega(n)$ time in worst case. This happens when all items are inserted in the same bucket. In practice the linked lists only contain a couple of items, so finding items is generally fast. The probability of having all items inserted in the same buckets is extemely low.
+
+Chaining is an easy and effective way to resolve hash collisions, since performance decreases linearly with the load factor (cite...). A disadvantage of chaining is that it generates a lot of memory overhead. For every element stored in the hash table an extra pointer is needed. Maintaining linked lists requires dynamic memory allocation, and this works particularly bad in concurrent environments, because it requires a tread-safe memory manager or garbage collector. Chaining also has poor cache performance.
+
+\subsubsection{Open Addressing}
+Open addressing is a method to resolve collisions by \emph{probing}. This means that upon a hash collision alternative buckets are being searched, possibly by using an alternative hash function.
+
+There are three main types of probing, which are linear probing, quadratic probing, and double hashing. These three types are discussed below.
+
+\paragraph{Linear Probing.}
+One way of dealing with hash collisions is trying the next bucket. This is known as \emph{linear probing}. A linear probing hash function $h' : D \times \mathbb{N} \rightarrow \{ 1, \dots, n \}$ can be derived from $h$ by letting \cite{Cormen:2009:IAT:1614191} 
+\begin{equation}
+	h'(x, i) = h(x) + ci \ \text{mod} \ n \hspace{36pt} \text{where} \ c \in \mathbb{N}
+\end{equation}
+
+Laarman et al. \cite{so73119} uses linear probing to create a lockless hash table that is \emph{cache efficient}. The implementation uses linear probing to walk over a cache line, which the authors called \emph{walking-the-line}.
+
+\paragraph{Quadratic Probing.}
+Quadratic probing is similar to linear probing, only the hash sequence increases quadratically rather than linearly. A quadratic hash function can be derived as follows \cite{Cormen:2009:IAT:1614191}.
+\begin{equation}
+	h'(x, i) = h(x) + c_1 i + c_2 i^2 \ \text{mod} \ n \hspace{36pt} \text{where} \ c_1, c_2 \in \mathbb{N}^+
+\end{equation}
+
+In linear probing clustering may occur, which is better avoided with quadratic probing. On the other hand, linear probing makes better use of locality. 
+
+\paragraph{Double Hashing.}
+Double hashing uses two independent auxiliary hash functions $h_1, h_2 : D \rightarrow \{ 1, \dots, n \}$ instead of one with $h_1 \not = h_2$. First $h_1$ is used and when a hash collision occurs the combined hash function $h'$ \cite{Cormen:2009:IAT:1614191} is used instead until an empty bucket is found.
+\begin{equation}
+	h'(x, i) = h_1(x) + ih_2(x) \ \text{mod} \ n
+\end{equation}
+
+Note that the interval depends on the data, which gives a good hashing distribution at the cost of locality.
+
+\section{Alternative Hashing Strategies}
+For designing a distributed hash table it is desirable to reduce the amount of network communication as much as possible. One way of doing that is to exploit data locality as much as possible. This can be quite hard, depending on the system that uses the hash table and the problem domain. Another way is to attempt to limit the number of probes performed after hash collisions. There are various alternative hashing strategies that try to minimize the amount of probes. In this section two of them will be discussed.
+
+\subsection{Cuckoo Hashing}
+The chaining and probing strategies all have an expected worst-case lookup time worse than $\mathcal{O}(1)$. The expected worst-case complexity for a lookup in a hash table that uses chaining is $\mathcal{O}(\frac{\log n}{\log \log n})$ \cite{Gonnet:1981:ELL:322248.322254}. The expected numer of probes when using a probing scheme is $\frac{1}{1 - \alpha}$. Only a perfect hashing scheme achieves a constant worst-case complexity.
+
+\emph{Cuckoo Hashing} \cite{Pagh01cuckoohashing, Pagh:2004:CH:1006424.1006426} is an open address hashing scheme that achieves constant lookup and deletion time and expected constant insertion time. The Cuckoo Hashing scheme uses two independent hashing functions $h_1, h_2 : D \rightarrow \{ 1, \dots, n \}$ with $h_1 \not = h_2$ instead of one. Furthermore the buckets of $H$ contain at most one element. Some Cuckoo hashing variants require two seperate hash tables $H_1, H_2$ to be used, so that $h_i$ is only applied to $H_i$ for $i \in \{ 1, 2 \}$. Cuckoo hashing can also be used with only one table. 
+
+Another advantage of Cuckoo hashing is that it can handle very large load-factors. It is also possible to generalize Cuckoo hashing to use $k$ hash functions $h_1, \dots, h_k : D \rightarrow \{ 1, \dots, n \}$ with $k > 2$ instead of only two hash functions. Cuckoo hashing with more than two hash functions permits higher load-factors.
+
+\subsubsection{Cuckoo Operations}
+The idea of Cuckoo hashing is that by inserting some data element $x \in D$ is inserted in either $b_{h_1(x)}$ or $b_{h_2(x)}$. It may happen that both buckets are occupied. In that case the data element $y \in b_{h_1(x)}$ is thrown out to make place for $x$. Then $x$ is placed into $b_{h_1(x)}$ and the insertion algorithm is recursively applied to $y$. When the number of recursive calls meets a certain treshold, the hash table could be rehashed by using two new hash functions, or an error could be thrown. As an effect, every lookup operation requires at most two calls. Checking whether $x \in D$ is in $H$ can be done by checking if $x \in b_{h_1(x)}$ or if not by $x \in b_{h_2(x)}$. This also holds for the delete operation.
+
+\begin{figure}
+	\centering
+	\subfloat[The \texttt{lookup} algorithm.] {
+		\begin{algorithm}[H]
+			\SetKwFunction{fun}{lookup}
+			\SetKwProg{Fn}{def}{\string:}{}
+			\SetStartEndCondition{ }{}{}%
+			\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+			\Fn{\fun{$H, x$}} {
+				$(b_1, \dots, b_n) \gets H$\\
+				\Return{$b_{h_1(x)} = x \vee b_{h_2(x)} = x$}
+			}
+		\end{algorithm}
+		\label{alg:cuckoo_lookup}
+	}
+	
+	\subfloat[The \texttt{insert} algorithm \cite{Pagh:2004:CH:1006424.1006426}.] {
+		\begin{algorithm}[H]
+			\SetStartEndCondition{ }{}{}%
+			\SetKwProg{Fn}{def}{\string:}{}
+			\SetKwFunction{fun}{insert}
+			\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+			\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+			\SetKwFor{While}{while}{:}{fintq}%
+			\SetKw{test}{in}{}%
+			\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+			\Fn{\fun{$H, x$}} {
+				\If{$lookup(H, x)$} {
+					\Return{x}
+				}
+				$(b_1, \dots, b_n) \gets H$ \\
+				$x' \gets x$ \\
+				\For{$i \gets 1$ \textbf{to} $treshold$} {
+
+					$b_{h_1(x')} \leftrightarrow x'$ \\
+					\textbf{if} $x' = \perp$ \textbf{return} $x$
+
+					$b_{h_2(x')} \leftrightarrow x'$ \\
+					\textbf{if} $x' = \perp$ \textbf{return} $x$
+
+				}
+				$\texttt{rehash}()$ \\
+				$\texttt{insert}(H, x)$
+			}
+		\end{algorithm}
+		\label{alg:cuckoo_insert}
+	}
+
+	\caption{Here the \texttt{lookup} and \texttt{insert} algorithms for Cuckoo hash tables are presented. The $\leftrightarrow$ operator denotes the \texttt{swap} operator that swaps the two given operands.}
+\end{figure}
+
+Algorithm \ref{alg:cuckoo_lookup} shows the implementation of the \texttt{lookup} algorithm. The \texttt{lookup} algorithm simply checks if $x$ is in one of the buckets corresponding to $h_1(x)$ and $h_2(x)$. At most two memory calls are made due to short-circuit evaluation.
+
+The implementation of the \texttt{insert} function is given in Algorithm \ref{alg:cuckoo_insert}. The $\leftrightarrow$ operator used in \texttt{insert} is the swap operator, which swaps the values of the two operands. First \texttt{lookup} is called to test if $x$ is already inserted in $H$. If not, then \texttt{insert} tries to insert $x$ in bucket $b_{h_1(x)}$ by using the swap operator. If $x \not = \perp$, then the algorithm moves to $b_{h_2(x)}$. This construction creates a chain of swaps with a maximal length of $treshold$. The algorithm terminates when $\perp$ is encountered in the chain. When the $treshold$ is reached, the algorithm either rehashes the table (which is the case in Algorithm \ref{alg:cuckoo_insert}) or throws an exception.
+
+\subsubsection{Complexity of the insert operation.}
+Assuming that $treshold = \mathcal{O}(n)$ the expected number of iterations in the \texttt{insert} swapping chain is bounded by $\mathcal{O}(1 + \frac{1}{\epsilon})$, where $\epsilon > 0$ is some constant \cite{Pagh:2004:CH:1006424.1006426}. Furthermore the probability that the \texttt{rehash} procedure is called is $\mathcal{O}(\frac{1}{n^2})$.
+
+The \texttt{rehash} procedure simply rehashes all keys using new hash functions and re-inserts all inserted data items. The expected cost of the \texttt{rehash} procedure is $\mathcal{O}(n)$ and the amortized expected cost per insertion is $\mathcal{O}(\frac{1}{n})$. The small probability of the \texttt{rehash} procedure being called implies that the \emph{variance} of the insertion time is constant.
+
+\subsubsection{Experimental results}
+In \cite{pilaf} a distributed hash table is implemented as part of an RDMA-based key-value store named Pilaf. The hash table is using a 3-way Cuckoo hashing variant that uses three hash functions. The researchers concluded that the average and maximal number of probes with 3-way cuckoo hashing is $1.6$ and $3$, respectively. The average and maximal number of probes for linear probing is $2.5$ and $213$, respectively. 
+
+Other comparisons between hashing strategies were hard to find. It would be a good idea to test several hashing strategies during the microbenchmarking phase, since hashing strategies are generally easy to implement. 
+
+\subsubsection{Bucketized Cuckoo Hashing}
+One of the variants on Cuckoo hashing is called \textit{$(k, l)$-Cuckoo Hashing} \cite{180323}. This variant uses $k$ hash functions instead of two and every bucket has $l$ \emph{slots}. Data elements can then be placed on one of the $l$ slots. The \texttt{lookup} operation simply tests if $x$ is on any of the $kl$ slots. The \texttt{insert} operation tries to insert $x$ in any of the $l$ slots before continuing the swap chain. Note that standard Cuckoo hashing is equal to $(2, 1)$-Cuckoo hashing. 
+
+The $(k, l)$-Cuckoo hashing variant has a high space efficiency ($>90\%$ according to \cite{180323}). Also the number of probes may decrease. Combining $(k, l)$-Cuckoo hashing with RDMA could be interesting, since $l$ buckets can be accessed by performing a single RDMA operation. The authors of \cite{pilaf} pointed out that $(2, 4)$-Cuckoo hashing could be very efficient. 
+
+A slight disadvantage is that the probes are slightly larger, since $l$ buckets have to be read. Thus the RDMA operations also become a bit larger. Furthermore, \texttt{compare-and-swap} operations can perfectly be used to implement the swapping operator when $(k, 1)$-Cuckoo hashing is used. This is not the case when $(k, l)$-Cuckoo hashing is used with $l > 1$. This implies that more RDMA operations might be needed to implement the \texttt{lookup} function.
+
+\subsubsection{Related Work}
+Nguyen et al. \cite{nguyen2014lock} (2014) presents a lockless Cuckoo hashing algorithm that uses \texttt{compare-and-swap}. The researchers also improved the \texttt{insert} algorithm. They found out that after each swap some data item is (temporarily) removed from the hash table. That might be an issue in concurrent environments.
+
+Li et al. \cite{Li:2014:AIF:2592798.2592820} (2014) presents algorithmic improvements for fast concurrent cuckoo hashing. The researchers used fine-grained locking and tried to minimize the size of the critical sections. Also a locking scheme for the insertion chain is presented. Furthermore a \emph{Hardware Transactional Memory (HTM)} is used to further increase performance.
+
+Kim et al. \cite{enhanced_chained_cuckoo_hashing} (2014) presents an improved chained hashing method and Cuckoo hashing method optimized for modern hardware. The new chaining method uses the size of the CPU cache lines to allocate nodes, so to reduce the number of cache misses. Also changes to pointes in the linked lists are made using \texttt{compare-and-swap}. The new Cuckoo hashing variant is bucketized and the size of each bucket is equal to the size of a CPU cache line. Also \texttt{compare-and-swap} is used where possible. 
+
+\subsection{Hopscotch Hashing}
+Another hashing scheme with expected constant insertion time is \emph{Hopscotch Hashing} \cite{hopscotch}. Hopscotch uses a single hash function $h : D \rightarrow \{ 1, \dots, n \}$ and every bucket is assigned to a \emph{neighborhood}. A neighborhood can be seen as a virtual bucket, spanning over multiple buckets in $H$. Every neighborhood has a fixed size $k > 1$. The neighborhood of bucket $b_i$, denoted by $N(b_i)$, is $b_i$ itself together with the next $k - 1$ buckets, so $N(b_i) = (b_i, \dots, b_{i + k - 1})$. Hopscotch hashing maintains the invariant that every data element $x \in D$ is stored within $N(b_{h(x)})$.
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{def}{\string:}{}
+		\SetKwFunction{fun}{lookup}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{while}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+		\Fn{\fun{$H, x$}} {
+			$(b_1, \dots, b_n) \gets H$ \\
+			$(b'_i, \dots, b'_j) \gets N(b_{h(x)})$ \\
+
+			\For{$p \gets i$ \textbf{to} $j$} {
+				\textbf{if} $x \in b_p$ \textbf{return} $true$
+			}
+
+			\Return{$false$}
+		}
+	\end{algorithm}
+	\label{fig:hopscotch_lookup}
+	\caption{The \texttt{lookup} algorithm used in Hopscotch hashing.}
+\end{figure}
+
+Figure \ref{fig:hopscotch_lookup} shows the \texttt{lookup} algorithm for Hopscotch hashing. The algorithm calculates $h(x)$ and checks if $x$ is inserted in $b_{h(x)}$ or in any of the $k - 1$ following buckets. The \texttt{lookup} function returns $true$ if and only if $x \in N(b_{h(x)})$ due to the Hopscotch invariant. Note that \texttt{lookup} works a bit like linear probing, so the CPU cache is used efficiently. If Hopscotch is used in combination with RDMA, $N(b_{h(x)})$ can be obtained by performing only one RDMA operation. 
+
+The \texttt{insert} algorithm for Hopscotch is a bit harder compared to \texttt{lookup} and is not presented in this report. Algorithmic details are given in \cite{hopscotch}. The idea is that if $b_{h(x)} = \perp$, then $b_{h(x)} \gets x$. Otherwise every bucket in $N(b_{h(x)})$ is tried. If every bucket of $N(b_{h(x)}) = (b_i, \dots, b_j)$ is occupied, the algorithm tries to move $b_j$ to another bucket in order to make place for $x$. It does that by placing $b_j$ in an empty bucket in $N(b_j)$. If all buckets in $N(b_j)$ are also filled, the algorithm can either do the same trick recursively, resize and rehash the table or throw an exception, depending on the requirements of the application.
+
+The \texttt{rehash} algorithm is quite easy and is also not discussed in this report. \texttt{reshash} simply chooses a new hash function and re-inserts all data items inserted in $H$.
+
+\subsubsection{Algorithmic Complexity}
+The only two functions that really matter for the research project are \texttt{insert} and \texttt{lookup}, so the \texttt{remove} function is not discussed. Table resizing is also not used, because the sized of the distributed hash table is fixed for best performance. Resizing has a negative influence on the overal performance, so it is not discussed further.
+
+The \texttt{lookup} function clearly has a complexity of $\Theta(k)$, where $k$ is the size of the neighborhood. Since $k$ is constant, the \texttt{lookup} function has a constant complexity. 
+
+According to \cite{hopscotch} the expected number of entries tested in the \texttt{insert} function before an open slot is found is at most $\frac{1}{2} \big (1 + \frac{1}{(1 - \alpha)^2} \big )$. Since $\alpha < 1$ the formula is constant, thus the expected computation time of \texttt{insert} is also constant. If $\alpha = 0.5$ then the expected number of entries tested is $2.5$ and for $\alpha = 0.9$ it is $50$, so choosing the right size for $k$ is important, especially when RDMA is involved.
+
+The \texttt{rehash} function simply has a complexity of $\mathcal{O}(m)$, where $m$ is the number of data items inserted in $H$.
+
+\subsubsection{Experimental Results}
+The performance of Hopscotch is compared to chained hashing, linear probing, and Cuckoo hashing in \cite{hopscotch}. The researchers concluded that Hopscotch scales better than chained hashing along CPU cores (the other hashing schemes are not included in the multicore test results). Note however that a lock-based chaining scheme is used, which may have a negative influence on the performance of the chaining schemes. 
+
+The probability of probing for an empty slot, with length bigger then $k$ is $\alpha^{k - 1}$ \cite{hopscotch}. The researchers concluded by experimentation that no resizing occured with $\alpha = 0.8$ and $k = 32$, because $\alpha^{k - 1} = \big ( \frac{8}{10} \big )^{31} \approx 0.000990$. This is good enough to work with in practice.
+
+The sequential throughput tests show that Hopscotch performs best, even when the load-factor becomes very high (i.e. $\alpha > 0.9$). A suprising observation is that the Cuckoo hashing scheme stops before $\alpha$ reaches $0.4$, so it could not handle high load-factors. 
+
+\subsubsection{Related Work}
+Dragojevic et al. \cite{farm} created a memory distributed computing platform that uses RDMA. They implemented a distributed hash table with the Hopscotch hashing scheme on top of the platform. It appears that large neighborhoods perform badly with RDMA because the read operation gets large. Small RDMA operations perform significantly better than large RDMA operations and with $k = 32$ (which is done in \cite{hopscotch}) the RDMA reads become 2 KB in size. 
+
+The researchers changed the algorithm a bit and designed the \emph{chained associative hopscotch hashing} algorithm, which achieves good balance between size and the number of RDMA calls. With chained associative hopscotch, the \texttt{lookup} algorithm requires only $1.04$ RDMA reads on average with $k = 8$ and $\alpha = 0.9$. Cuckoo hashing requires $3.2$ RDMA operation on average with $\alpha = 0.75$, but perhaps bucketized Cuckoo hashing can do better. An explanation of the algorithm is given in \cite{farm}, but pseudocode is not included.
+
+\section{Distributed Hash Tables}
+Unfinished..

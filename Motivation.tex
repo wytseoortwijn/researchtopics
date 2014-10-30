@@ -1,0 +1,22 @@
+\chapter{Motivation}
+
+Model checking is an important tool in software verification. With model checking, one can check if the model of a software system meets its requirements. A model checker can be implemented in various ways, one of which is symbolically. Rather than explicitly maintaining states, a symbolic model checker stores the state space as a boolean formula, represented as a \emph{Binary Decision Diagram} (shortened to \emph{BDD}). The main advantage of such a representation is that a small boolean function can potentially represent a large number of states, thus giving an efficient representation of the state space. Symbolic model checking has already been widely used as a verification tool and a fair number of symbolic model checkers already exist, but parallel and distributed symbolic model checking is still relatively unsuccessful.
+
+\section{Early Work}
+In the early 90s a lot of research has been done on parallel BDD manipulation by using massively parallel computers. Most work was designed for SIMD machines and vector machines. Researches experimented with different ways of work partitioning, including BFS, DFS, nested DFS, and hybrid DFS/BFS. Unfortunately, the speedups obtained were disappointing, considering the large number of processing cores used.
+
+In the late 90s research attention shifted towards distributed BDD manipulation. At that time, a network of workstations was the most affordable and best available parallel platform, which motivated the research for distributed BDD manipulation. Experimental results pointed out that very large BDDs could be manipulated due to the aggregated memory of the network, but speedups were not obtained. This was mainly due to network latency, which was the major performance bottleneck. 
+
+After the 90s research attention shifted towards the use of BDDs in shared and distributed memory rather than parallel or distributed manipulation of BDDs.
+
+\section{Recent Work}
+Hardware changed significantly during the last decade. At the time of writing parallel hardware is widely available and specialized high performance network interconnects like Infiniband are just as affordable as standard Ethernet hardware. This makes a renewed attempt to parallelize and distribute BDD operations justifiable. One example of this is Sylvan, an implementation of parallel BDD operations by using a lockless hashtable and work-stealing. Sylvan obtained impressive speedups, which makes it relatively successful.
+
+This research project will attempt to implement BDD operations on a cluster of multicore machines by using RDMA-enabled hardware. By doing that, BDD operations can potentially be designed that scale both across the number of participating processing cores and the number of participating machines. To our knowledge this has never been done before.
+
+\section{Project Relevance}
+One of the main problems of model checking today is the state space explosion problems. There are several ways to tackle this problem, including state space reduction and state space minimization techniques. The use of BDDs is one of such techniques, since it allows a compact representation of the state space. Nonetheless, the state space explosion still exists. Another way to tackle the state space explosion problem is to increase the available hardware resources. This can be either the increase in memory, the increase in CPU power or both. Manycore computers are very expensive, whereas a cluster of workstations could be cheaper, depending on the size of the cluster.
+
+Earlier attempts to use such a cluster for BDD manipulations have been relatively unsuccessful. Still, it is justifiable to relook at the possibilities because of the recent hardware advances. If this research succeeds, larger model checking problems can be solved in less time, depending on how well the implementation scales along the different hardware resources. Also other verification algorithms can benefit from this research since they too may scale well across a cluster of machines by applying the same principles.
+
+The third potential is the development of heterogeneous algorithms for software verification. It is possible to use RDMA at the GPU level, so algorithms may be developed that run anywhere, including the GPU. The development of such algorithms is highly relevant in the field of High Performance Computing, and this research could potentially form the basis for such development.
