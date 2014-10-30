@@ -181,11 +181,16 @@ The \texttt{mk} function creates a new BDD node and adds it to the unique table.
 \subsection{The \texttt{relprod} operation}
 Binary Decision Diagrams are used in symbolic model checking. An important model checking algorithm is the \emph{reachability} algorithm, which determines the set of all reachable program states, given an initial state and a transition relation. 
 
-Burch et al. \cite{burch1994symbolic} used the \emph{relational product} operation to implement the reachability algorithm, where both the initial state and the transition relation function are represented by boolean functions. The relational product has the form $\exists X. (A \wedge B)$, where $X$ is a set of variables and $A, B$ are boolean functions.
-
-Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names. Suppose that $\phi(x_1, \dots, x_n) \equiv \phi(X)$ represent a set of states and $\psi(x_1, \dots, x_n, x'_1, \dots, x'_n) \equiv \psi(X, X')$ represent the transition relation. Then \texttt{relprod} is used to calculate the next set of states $\phi'(X)$ by:
+Burch et al. \cite{burch1994symbolic} used the \emph{relational product} operation to implement the reachability algorithm, where both the initial state and the transition relation function are represented by boolean functions. The relational product has the form: 
 \begin{equation}
-	\phi'(X') \equiv \exists X. (\phi(X) \wedge \psi(X, X'))
+	\texttt{relprod}(A, B, X) \equiv \exists X. (A \wedge B)
+	\label{eqn:relprod}
+\end{equation}
+where $X$ is a set of variables and $A, B$ are boolean functions.
+
+Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names. Suppose that $\phi(x_1, \dots, x_n) \equiv \phi(X)$ represent a set of states and $\psi(x_1, \dots, x_n, x'_1, \dots, x'_n) \equiv \psi(X, X')$ represent the transition relation. Then \texttt{relprod} \ref{eqn:relprod} is used to calculate the next set of states $\phi'(X)$ by:
+\begin{equation}
+	\phi'(X') \equiv \exists X. (\phi(X) \wedge \psi(X, X')) \equiv \texttt{relprod}(\phi(X), \psi(X, X'), X)
 	\label{eqn:relprod_1}
 \end{equation}
 \begin{equation}
@@ -233,7 +238,33 @@ Note that $\phi(X)$ is used in \ref{eqn:relprod_1} so that the successors calcul
 Figure \ref{fig:relprod_seq} shows an implementation of the \texttt{relprod} function. The implementation of \cite{dijk2012parallelization} shows that if $x \in X$ and $R_{low} = 1$ then the result $1$ can simply be returned. This algorithm however shows the essence of the relational product implementation. \cite{dijk2012parallelization} also gives a new algorithm \texttt{relprods} that is more efficient than \texttt{relprod} because it does not create BDD nodes unnecessarily.
 
 \section{Garbage Collection}
-Unfinished..
+After performing BDD operations it may happen that some nodes become unused due to reduction. If the memory needs to be used efficiently, then \emph{garbage collection} is essential. The process of garbage collection removes all unused nodes from the unique table. There are several algorithms for garbage collection, which are discussed below. 
+
+Somenzi \cite{somenzi2001efficient} pointed out that unused BDD nodes are often reused. This may have a negative impact on the performance of garbage collection, since nodes are possibly recreated. Therefore \cite{somenzi2001efficient} suggested that garbage collection should only be performend when there are enough unused nodes. Then the cost of the garbage collection algorithm can be justified.
+
+In the next two sections the garbage collection techniques \emph{reference counter} and \emph{mark-and-sweep} are discussed.
+
+\subsection{Reference Counting}
+With reference counting, the number of references to a BDD nodes are recorded and stored in the unique table, together with the BDD node itself. Increasing and decreasing the reference counter can be done by performing a \texttt{compare-and-swap} operation on the reference counting bits of the bucket in which the corresponding BDD node is stored. 
+
+When the reference counter of a BDD node becomes zero, then it is unused. When there are enough unused BDD nodes in the unique table, the garbage collection procedure is called, which deletes all unused BDD nodes with complexity $\mathcal{O}(n)$. Garbage collection can be made more efficient by letting the \texttt{mk} procedure reuse nodes that are currently unused. Then the expensive garbage collection procedure does not have to be called.
+
+If reference counting is used in combination with RDMA, then updating the reference counter of a BDD may result in an extra RDMA write. Minimizing the number of RDMA calls is crucial for both performance and scalability, so we should try to combine reference counting with other BDD operations or we should try to find another garbage collection method. On the other hand, performing the actual removal of BDD nodes from the unique table can be done both individually and locally by each of the participating machines, even without the need to synchronize. 
+
+\subsection{Mark and Sweep}
+Another garbage collection scheme used in BDD manipulation is \emph{mark-and-sweep} \cite{mccarthy1960recursive}. Mark-and-sweep requires two passes. In the first pass (the marking pass), every BDD node that is referenced is marked. In the second pass (the sweeping pass) every BDD node that is not marked is removed. So every BDD node receives an extra bit in the unique table for marking and no reference counter is needed.
+
+The advantage of mark-and-sweep is that no extra work needs to be done for garbage collection when a BDD node is referenced. All work for garbage collection is performed when the \texttt{garbage-collect} procedure is called. This may speed up BDD operations, especially when RDMA is used to implement them. 
+
+The disadvantage of mark-and-sweep is that two passes are needed instead of one. Another disadvantage is that the entire computation stops during garbage collection. The advantages of PGAS can however be used to speed up garbage collection. Both the marking and the sweeping passes can be done in parallel. First the \texttt{garbage-collect} procedure partitions the unique table across all participating processes. In the marking pass each process takes a partition that resides in local memory. Then BDD nodes can be marked by using an RDMA \texttt{compare-and-swap} computation. In the sweep pass every process iterates over its local partition and removed every BDD node that is not marked.
+
+\subsubsection{Lazy Sweeping}
+A variant on mark-and-sweep is \emph{lazy sweeping}, also called \emph{mark-and-don't-sweep}. In lazy sweeping each bucket in the hash table is marked with some bit $b$ as either black ($b=0$) or white ($b=1$). When the load-factor $\alpha$ reaches some treshold, \texttt{garbage-collect} is called, which flips the interpretation of $b$. So $b=1$ becomes black and $b=0$ becomes white. This means that every bucket in the hash table (temporarily) becomes white. A single marking pass follows that makes all referenced buckets black again. With this technique only a single marking pass is needed instead of two passes. The marking pass can be performed in parallel by doing the same trick as in mark-and-sweep.
+
+\subsubsection{Related Work}
+The BDDNOW package \cite{bddnow}, which is a parallel BDD package, uses mark-and-sweep for garbage collection. The researchers argued that keeping track of reference counts in a distributed environment is costly, so mark-and-sweep should be used instead.
+
+In \cite{chen1997breadth} hybrid breath-first and depth-first algorithms are given for BDD construction. The researchers preferred mark-and-sweep over reference counting because mark-and-sweep uses less memory. Mark-and-sweep can be implemented by adding a single bit to the unique table, and reference counting requires more bits. 
 
 \section{Parallel BDD operations}
 A parallel version of the \texttt{ite} and \texttt{relprod} operations is given in \cite{dijk2012parallelization} and \cite{sylvan_multicore_bdd}. The unique table and the computed table are implemented using the lockless hash table described in \cite{so73119}. Furthermore the recursive calls in Figures \ref{fig:ite_seq} and \ref{fig:relprod_seq} are done in parallel by using a work stealing framework. The implementation of \cite{dijk2012parallelization} uses the Wool framework \cite{faxen2010efficient} and the implementation of \cite{sylvan_multicore_bdd} uses Lace \cite{dijk2013lace}.
