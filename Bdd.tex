@@ -231,11 +231,45 @@ Note that $\phi(X)$ is used in \ref{eqn:relprod_1} so that the successors calcul
 		}
 	\end{algorithm}
 
-	\caption{The (sequential) implementation of the \texttt{relprod} operation.}
+	\caption{The sequential implementation of the \texttt{relprod} operation.}
 	\label{fig:relprod_seq}
 \end{figure}
 
 Figure \ref{fig:relprod_seq} shows an implementation of the \texttt{relprod} function. The implementation of \cite{dijk2012parallelization} shows that if $x \in X$ and $R_{low} = 1$ then the result $1$ can simply be returned. This algorithm however shows the essence of the relational product implementation. \cite{dijk2012parallelization} also gives a new algorithm \texttt{relprods} that is more efficient than \texttt{relprod} because it does not create BDD nodes unnecessarily.
+
+\subsection{Sequential Reachability}
+The previous section shows how the \texttt{relprod} operations can be used to calculate the next set of states $\phi'(X)$ given an initial state $\phi(X)$ and a transition relation $\psi(X, X')$. Suppose that $\phi$ and $\psi$ are represented by the BDDs $I$ and $T$, respectively. Then the implementation for the sequential reachability algorithm \texttt{reach} is given in Figure \ref{fig:reach_seq}.
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{bdd}{\string:}{}
+		\SetKwFunction{fun}{reach}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{while}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+		\Fn{\fun{\textbf{bdd} $I$, \textbf{bdd} $T$, $X$, $X'$}} {
+			$R \gets I$ \\
+			$P \gets 0$ \\
+			\While{$R \not = P$} {
+				$N \gets \texttt{relprod}(R, T, X)$ \\
+				$N \gets N[X' \gets X]$ \\
+				$P \gets R$ \\
+				$R \gets \texttt{ite}(R, 1, N)$
+			}
+			\Return{$R$}
+		}
+	\end{algorithm}
+
+	\caption{The sequential implementation of the reachability operation.}
+	\label{fig:reach_seq}
+\end{figure}
+
+In every iteration of the while loop (lines 4 to 8) the set of next states (represented by $N$) is calculated from the current set of states (represented by $R$) and the two are combined by using the \texttt{ite} equivalent of the $\vee$ operation. Suppose that $\phi_0(X) \equiv \phi(X)$ and $\phi_{i+1}(X) \equiv \phi'_i(X)$. Then the while loop at line 4 terminates when $\phi_{i} = \phi_{i+1}$ after $i+1$ iterations. At that point a fixpoint is reached and the BDD representation of $\phi_{i+1}$, which is the $R$ at line 9, is returned.
 
 \section{Garbage Collection}
 After performing BDD operations it may happen that some nodes become unused due to reduction. If the memory needs to be used efficiently, then \emph{garbage collection} is essential. The process of garbage collection removes all unused nodes from the unique table. There are several algorithms for garbage collection, which are discussed below. 
@@ -250,6 +284,9 @@ With reference counting, the number of references to a BDD nodes are recorded an
 When the reference counter of a BDD node becomes zero, then it is unused. When there are enough unused BDD nodes in the unique table, the garbage collection procedure is called, which deletes all unused BDD nodes with complexity $\mathcal{O}(n)$. Garbage collection can be made more efficient by letting the \texttt{mk} procedure reuse nodes that are currently unused. Then the expensive garbage collection procedure does not have to be called.
 
 If reference counting is used in combination with RDMA, then updating the reference counter of a BDD may result in an extra RDMA write. Minimizing the number of RDMA calls is crucial for both performance and scalability, so we should try to combine reference counting with other BDD operations or we should try to find another garbage collection method. On the other hand, performing the actual removal of BDD nodes from the unique table can be done both individually and locally by each of the participating machines, even without the need to synchronize. 
+
+\subsubsection{Related Work}
+The parallel BDD implementations described in \cite{dijk2012parallelization} and \cite{sylvan_multicore_bdd} both use reference counting. This is justifiable since mark-and-sweep requires the entire computation to stop when garbage collection is performed and reference counting does not. This might be different in a distributed setting. 
 
 \subsection{Mark and Sweep}
 Another garbage collection scheme used in BDD manipulation is \emph{mark-and-sweep} \cite{mccarthy1960recursive}. Mark-and-sweep requires two passes. In the first pass (the marking pass), every BDD node that is referenced is marked. In the second pass (the sweeping pass) every BDD node that is not marked is removed. So every BDD node receives an extra bit in the unique table for marking and no reference counter is needed.
@@ -267,4 +304,7 @@ The BDDNOW package \cite{bddnow}, which is a parallel BDD package, uses mark-and
 In \cite{chen1997breadth} hybrid breath-first and depth-first algorithms are given for BDD construction. The researchers preferred mark-and-sweep over reference counting because mark-and-sweep uses less memory. Mark-and-sweep can be implemented by adding a single bit to the unique table, and reference counting requires more bits. 
 
 \section{Parallel BDD operations}
-A parallel version of the \texttt{ite} and \texttt{relprod} operations is given in \cite{dijk2012parallelization} and \cite{sylvan_multicore_bdd}. The unique table and the computed table are implemented using the lockless hash table described in \cite{so73119}. Furthermore the recursive calls in Figures \ref{fig:ite_seq} and \ref{fig:relprod_seq} are done in parallel by using a work stealing framework. The implementation of \cite{dijk2012parallelization} uses the Wool framework \cite{faxen2010efficient} and the implementation of \cite{sylvan_multicore_bdd} uses Lace \cite{dijk2013lace}.
+A parallel version of the \texttt{ite} and \texttt{relprod} operations is given in \cite{dijk2012parallelization} and \cite{sylvan_multicore_bdd}. The unique table and the computed table are implemented using the lockless hash table described in \cite{so73119}. Furthermore the recursive calls in Figures \ref{fig:ite_seq} and \ref{fig:relprod_seq} are done in parallel by using a work stealing framework. The implementation of \cite{dijk2012parallelization} uses the Wool framework \cite{faxen2010efficient} and the implementation of \cite{sylvan_multicore_bdd} uses Lace \cite{dijk2013lace}. 
+
+\subsection{Parallel Reachability}
+Unfinished..
