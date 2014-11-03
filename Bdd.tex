@@ -269,7 +269,7 @@ The previous section shows how the \texttt{relprod} operations can be used to ca
 	\label{fig:reach_seq}
 \end{figure}
 
-In every iteration of the while loop (lines 4 to 8) the set of next states (represented by $N$) is calculated from the current set of states (represented by $R$) and the two are combined by using the \texttt{ite} equivalent of the $\vee$ operation. Suppose that $\phi_0(X) \equiv \phi(X)$ and $\phi_{i+1}(X) \equiv \phi'_i(X)$. Then the while loop at line 4 terminates when $\phi_{i} = \phi_{i+1}$ after $i+1$ iterations. At that point a fixpoint is reached and the BDD representation of $\phi_{i+1}$, which is the $R$ at line 9, is returned.
+In every iteration of the while loop (lines 4 to 8) the set of next states (represented by $N$) is calculated from the current set of states (represented by $R$) and the two are combined by using the \texttt{ite} equivalent of the $\vee$ operation. Suppose that $\phi_0(X) \equiv \phi(X)$ and $\phi_{i+1}(X) \equiv \phi'_i(X) \vee \phi_i(X)$. Then the while loop at line 4 terminates when $\phi_{i} = \phi_{i+1}$ after $i+1$ iterations. At that point a fixpoint is reached and the BDD representation of $\phi_{i+1}$, which is the $R$ at line 9, is returned.
 
 \section{Garbage Collection}
 After performing BDD operations it may happen that some nodes become unused due to reduction. If the memory needs to be used efficiently, then \emph{garbage collection} is essential. The process of garbage collection removes all unused nodes from the unique table. There are several algorithms for garbage collection, which are discussed below. 

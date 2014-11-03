@@ -199,5 +199,70 @@ Dragojevic et al. \cite{farm} created a memory distributed computing platform th
 
 The researchers changed the algorithm a bit and designed the \emph{chained associative hopscotch hashing} algorithm, which achieves good balance between size and the number of RDMA calls. With chained associative hopscotch, the \texttt{lookup} algorithm requires only $1.04$ RDMA reads on average with $k = 8$ and $\alpha = 0.9$. Cuckoo hashing requires $3.2$ RDMA operation on average with $\alpha = 0.75$, but perhaps bucketized Cuckoo hashing can do better. An explanation of the algorithm is given in \cite{farm}, but pseudocode is not included.
 
+\subsection{Bloom filters}
+A \emph{Bloom Filter} \cite{dharmapurikar2003longest} is a probablistic data structure used to test if some element is part of a set. Bloom filters generally have two operations, which are \texttt{test} and \texttt{add}. The \texttt{test} operation tests if a data item is a member of the set and \texttt{add} marks the data item as part of the set. Bloom filters are very space-efficient, but the \texttt{test} operation has a probability of producing \emph{false positives}. This means that \texttt{test} sometimes returns true when given some data item that is not part of the set. \emph{False negatives} however cannot occur. 
+
+A Bloom filter is implemented as a bit-vector $B = \langle v_1, \dots, v_p \rangle$ of length $p$ together with $k$ hash functions $h_1, \dots, d_k : D \rightarrow \{ 1, \dots, p \}$ that map data elements from some domain $D$ to one of the $p$ bits in $B$. The implementation of the \texttt{test} and \texttt{add} operations are very simple.
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{def}{\string:}{}
+		\SetKwFunction{fun}{add}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{while}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+		
+		\Fn{\fun{$V$, $x \in D$}} {
+			$\langle v_1, \dots, v_p \rangle \gets V$ \\
+			\For{$i \gets 1$ \textbf{to} $k$} {
+				$v_{h_i(x)} = 1$
+			}
+		}
+	\end{algorithm}
+
+	\caption{The implementation of the \texttt{add} operation used in Bloom filters.}
+	\label{fig:bloom_add}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{def}{\string:}{}
+		\SetKwFunction{fun}{test}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{while}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+		\Fn{\fun{$V$, $x \in D$}} {
+			$\langle v_1, \dots, v_p \rangle \gets V$ \\
+			\For{$i \gets 1$ \textbf{to} $k$} {
+				\textbf{if} $v_{h_i(x)} = 0$ \textbf{return $false$}
+			}
+			\Return{\textbf{true}}
+		}
+	\end{algorithm}
+
+	\caption{The \texttt{test} operation used in Bloom filter.}
+	\label{fig:bloom_test}
+\end{figure}
+
+Figure \ref{fig:bloom_add} shows the implementation of the \texttt{add} operation. The \texttt{add} operations simply sets all bits corresponding to $h_1(x), \dots, h_k(x)$ to one. Figure \ref{fig:bloom_test} shows the implementation of the \texttt{test} function. This function simply checks if 
+all bits corresponding to $h_1(x), \dots, h_k(x)$ are set to one. If one of these bits is zero, then the algorithm returns $false$. False negatives do not occur, since the \texttt{add} operation would have set all $k$ bits to one if it was inserted. However it may happen that all $k$ bits are set to one, but $x$ has never been inserted. In that case the implementation returns $true$, which is false positive.
+
+\subsubsection{Related Work}
+Song et al. \cite{song2005fast} used bloom filters to speed up lookups in hash tables in order to minimize the number of expensive (external) memory accesses in network processing algorithms. Before an expensive lookup is performed in external memory, a bloom filter is queried in internal memory first to test if the data element is in the hash table. If the data element is not in the bloom filter, the expensive lookup operation does not have to be performed, since false negatives do not occur. If the data element is in the bloom filter (possibly the result of a false positive), the lookup is performed. The paper describes an extension to the \texttt{test} operation called the \emph{exact match lookup} that helps the hash table lookup to find the data, thus further reducing the number of memory calls. 
+
+Kirsch et al. \cite{kirsch2006less} shows that the number of hash function $k$ can be reduced to two without affecting the performance. The idea is that two hash function $h_1, h_2$ can be used to create new hash functions $g_i(x) = h_1(x) + ih_2(x)$. The researchers showed that the asymptotic false positive probability does not increase by using only two hash functions.
+
+\subsubsection{Bloom filters and PGAS}
+It might be possible to reduce the number of RDMA operations performed on the distributed hash table by using bloom filters. Every participating machine creates a bit-vector in their partition in PGAS (in local memory), on top of their partition of the distributed hash table. Then every \texttt{lookup} operation first checks if the data item is in the bloom filter and every \texttt{insert} operation inserts the data item in the bloom filter. Depending on the hashing scheme used, the improvements describes in \cite{song2005fast, kirsch2006less} can be used to further improve the efficiency of the algorithm.
+
 \section{Distributed Hash Tables}
 Unfinished..
