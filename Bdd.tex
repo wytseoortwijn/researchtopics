@@ -84,7 +84,10 @@ Most BDD operations are based on a concept called Shannon decomposition \cite{di
 \end{definition}
 
 \begin{definition}[Shannon Decomposition]
-	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi(x_1, \dots, x_n)$ a boolean formula (i.e. with codomain $\mathbb{B}$). Then the \emph{Shannon decomposition} of $\phi$ along $x \in X$ is defined as $\psi = (x \wedge \phi_{x=1}) \vee (\overline{x} \wedge \phi_{x=0})$ such that $\phi \equiv \psi$. 
+	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi(x_1, \dots, x_n)$ a boolean formula (i.e. with codomain $\mathbb{B}$). Then the \emph{Shannon decomposition} of $\phi$ along $x \in X$ is defined as
+	\begin{equation}
+		\phi \equiv (x \wedge \phi_{x=1}) \vee (\overline{x} \wedge \phi_{x=0})
+	\end{equation}
 \end{definition}
 
 Many BDD operations are implemented by taking some variable $x$ and recursively calculating the results of the subproblems $\phi_{x=0}$ and $\phi_{x=1}$ by making a BDD of the Shannon decomposition of $\phi$ along $x$. 
@@ -299,12 +302,117 @@ The disadvantage of mark-and-sweep is that two passes are needed instead of one.
 A variant on mark-and-sweep is \emph{lazy sweeping}, also called \emph{mark-and-don't-sweep}. In lazy sweeping each bucket in the hash table is marked with some bit $b$ as either black ($b=0$) or white ($b=1$). When the load-factor $\alpha$ reaches some treshold, \texttt{garbage-collect} is called, which flips the interpretation of $b$. So $b=1$ becomes black and $b=0$ becomes white. This means that every bucket in the hash table (temporarily) becomes white. A single marking pass follows that makes all referenced buckets black again. With this technique only a single marking pass is needed instead of two passes. The marking pass can be performed in parallel by doing the same trick as in mark-and-sweep.
 
 \subsubsection{Related Work}
-The BDDNOW package \cite{bddnow}, which is a parallel BDD package, uses mark-and-sweep for garbage collection. The researchers argued that keeping track of reference counts in a distributed environment is costly, so mark-and-sweep should be used instead.
+The BDDNOW package \cite{bddnow}, which is a parallel BDD package, uses mark-and-sweep for garbage collection. The researchers argued that counting references in a distributed environment is costly, so mark-and-sweep should be used instead.
 
 In \cite{chen1997breadth} hybrid breath-first and depth-first algorithms are given for BDD construction. The researchers preferred mark-and-sweep over reference counting because mark-and-sweep uses less memory. Mark-and-sweep can be implemented by adding a single bit to the unique table, and reference counting requires more bits. 
 
 \section{Parallel BDD operations}
-A parallel version of the \texttt{ite} and \texttt{relprod} operations is given in \cite{dijk2012parallelization} and \cite{sylvan_multicore_bdd}. The unique table and the computed table are implemented using the lockless hash table described in \cite{so73119}. Furthermore the recursive calls in Figures \ref{fig:ite_seq} and \ref{fig:relprod_seq} are done in parallel by using a work stealing framework. The implementation of \cite{dijk2012parallelization} uses the Wool framework \cite{faxen2010efficient} and the implementation of \cite{sylvan_multicore_bdd} uses Lace \cite{dijk2013lace}. 
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{bdd}{\string:}{}
+		\SetKwFunction{fun}{par-ite}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{do in parallel}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
 
-\subsection{Parallel Reachability}
-Unfinished..
+		\Fn{\fun{\textbf{bdd} $A$, \textbf{bdd} $B$, \textbf{bdd} $C$}} {
+			\textbf{if} $A=1$ \textbf{return} $B$ \\
+			\textbf{if} $A=0$ \textbf{return} $C$ \\
+			\textbf{if} $\texttt{in-cache}(A, B, C)$ \textbf{return} $\texttt{cache-lookup}(A,B,C)$ \\
+			$x \gets \texttt{min}(\texttt{var}(A), \texttt{var}(B), \texttt{var}(C))$ \\
+
+			\While{} {
+				$R_{low} \gets \texttt{par-ite}(\texttt{low}(A, x), \texttt{low}(B, x), \texttt{low}(C, x))$ \\
+				$R_{high} \gets \texttt{par-ite}(\texttt{high}(A, x), \texttt{high}(B, x), \texttt{high}(C, x))$ \\
+			}
+
+			
+			$R \gets \texttt{mk}(x, R_{low}, R_{high})$ \\
+			$\texttt{add-to-cache}(A, B, C, R)$ \\
+			\Return{$R$}
+		}
+	\end{algorithm}
+
+	\caption{The parallel implementation of the \texttt{ite} operation \cite{sylvan_multicore_bdd}.}
+	\label{fig:ite_par}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{bdd}{\string:}{}
+		\SetKwFunction{fun}{par-relprod}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{do in parallel}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+		\Fn{\fun{\textbf{bdd} $A$, \textbf{bdd} $B$, $X$}} {
+			\textbf{if} $A=1 \wedge B=1$ \textbf{return} $1$ \\
+			\textbf{if} $A=0 \vee B=0$ \textbf{return} $0$ \\
+			\textbf{if} $\texttt{in-cache}(A, B, X)$ \textbf{return} $\texttt{cache-lookup}(A, B, X)$ \\
+			$x \gets \texttt{min}(\texttt{var}(A), \texttt{var}(B))$ \\
+
+			\While{} {
+				$R_{low} \gets \texttt{par-relprod}(\texttt{low}(A, x), \texttt{low}(B, x), X)$ \\
+				$R_{high} \gets \texttt{par-relprod}(\texttt{high}(A, x), \texttt{high}(B, x), X)$ \\
+			}
+
+			\If{$x \in X$} {
+				$R \gets \texttt{ite}(R_{low}, 1, R_{high})$
+			}
+			\Else {
+				$R \gets \texttt{mk}(x, R_{low}, R_{high})$ \\
+			}
+			
+			$\texttt{add-to-cache}(A, B, X, R)$ \\
+			\Return{$R$}
+		}
+	\end{algorithm}
+
+	\caption{The parallel implementation of the \texttt{relprod} operation. \cite{sylvan_multicore_bdd}.}
+	\label{fig:relprod_par}
+\end{figure}
+
+A parallel version of the \texttt{ite} and \texttt{relprod} operations is given in \ref{fig:ite_par} and \ref{fig:relprod_par}, respectively. The only difference between the sequential and the parallel versions is that the recursive calls are performed in parallel. The parallelism is implemented by using a work stealing framework. The implementation of \cite{dijk2012parallelization} uses the Wool framework \cite{faxen2010efficient} and the implementation of \cite{sylvan_multicore_bdd} uses Lace \cite{dijk2013lace}. 
+
+The unique table and the computed table are implemented using the \emph{lockless} hash table described in \cite{so73119}. It is crucial to use a lockless hash table to implement parallel BDD operations, since locking mechanisms generally do not work well with parallelism.  
+
+\subsection{Earlier Work}
+In the 90s a lot of research has been done to implement parallel and distributed BDD operations. The effectiveness of these implementations was disappointing, since none of them seriously improved the performance compared to the sequential implementations. Some of the implementations are discussed below.
+
+\subsubsection{BDDNOW}
+The parallel BDD package BDDNOW \cite{BDDNOW:parallel_bdd_package} is a relatively old parallel BDD package targetting distributed memory machines (created in 1996). At that time networked workstations were the most widely available parallel computing resource, which motivated the research for BDD implementations on distributed memory. BDDNOW uses the \emph{Parallel Virtual Machine (PVM)} \cite{geist1994pvm} to create workers on multiple machines.
+
+The researchers found out that reference counting in a distributed environment is costly, so they suggested the use of mark-and-sweep. The biggest problem during the project was the implementation of load-balancing, since network communication costs were expensive. Every time the size of the BDD doubles, BDDNOW redistributes all BDD nodes so that each participating process receives approximately the same number of nodes.  
+
+The results obtained by BDDNOW were dissapointing. The only scenario that resulted in speedup was when the sequential implementation ran out of memory. A speedup could be obtained because the distributed implementation had more cache and memory available, namely the caches and memories of all participating processors. The sequential implementation had to move to disk-based storage when memory ran full, which had a negative impact on performance.
+
+\subsubsection{Exploiting Memory Hierarchy}
+Sanghavi et al. \cite{545652} (published in 1996) presented a high-performance BDD package that exploits memory hierarchy. Most BDD packages at that time used a DFS approach, creating disorderly memory access patterns. The researchers found out that caching could not effectively be applied and that performance could be improved by applying BFS, since it has better data-locality.  When main-memory ran full and the algorithm had to switch to disk-based storage, the use of BFS resulted in even more speedup. By applying BFS speedups of 100 were obtained compared to DFS implementations when main-memory ran full.
+
+The researchers considered the use of \emph{Quasi-Reduced BDDs (QRBDDs)} to improve data-locality, but the size of QRBDDs is multiple times larger than normal BDDs, which makes QRBDDs impractical to work with. Another possibility to improve data-locality was to use a block-index table, but finding the index of variables appearently causes significant overhead. The researchers found a way to implement an index-based customized memory manager that maps BDD nodes to a single cache line without causing much overhead.
+
+The paper describes two other techniques called \emph{superscalarity} and \emph{pipelining} to amortize the costs of page faults for accessing the unique table. Pipelining improves the amount of caching by performing BDD operations even when the operands are yet to be computed and superscalarity performs multiple independent BDD-operations concurrently.
+
+\subsubsection{Implementation of an Efficient Parallel BDD Package}
+Stornetta et al. \cite{Stornetta96implementationof} (also published in 1996) present a parallel BDD package that uses a non-shared distributed memory environment, very similar to \cite{BDDNOW:parallel_bdd_package}. The package uses a BFS approach, just like \cite{545652}. A distributed \emph{two-level hash table} and an uncomputed cache are used to reduce communication costs as much as possible. A two-level hash table is a hash table in which every bucket is again a hash table. The entries of the nested hash tables are called \emph{blocks}. The advantage is that every \texttt{lookup} operation retrieves multiple blocks, possibly reducing network communication. 
+
+The \emph{uncomputed cache} is used to store ongoing recursive BDD operations. This is needed since appearently intermediate results are not stored in the computed table during recursion, but they can of course be reused. These results are stored in a seperate table, called the \emph{uncomputed table}.
+
+Every node occuring in the BDD is owned by one of the participating workers. In case of an operation, for example $\texttt{ite}(A,B,C)$, the \emph{highest} variable in $\{ A, B, C \}$ is determined and the worker owning that variable computes $\texttt{ite}(A,B,C)$. This process is repeated during recursion. Data locality can be exploited by distributing the computed table and uncomputed cache based on variable ownership, which further reduces communication costs.
+
+The researchers found out by experimentation that the parallel implementation has a superlinear speedup compared to the sequential version when main-memory runs full, despite the expensive communication costs. If the BDD fits into the memory of a single system, the sequential algorithm is of course much faster.
+
+\subsubsection{BDD Operations Using a Distributed Shared Memory}
+Parasuram et al. \cite{parasuram1994parallel} (published in 1994) describes parallel BDD operations for distributed shared memory environments. The BDD operations exploit fine-grained parallelism. Inter-node communication is optimized by distributing the smallest units of data and computational load to the participating processes. Since exploiting data-locality and predicting which nodes are involved in a computation is difficult, the researchers argued that this is a good solution. 
+
+Load-balancing is implemented by using \emph{distributed stacks}. Each worker owns a stack and is able to perform $\texttt{push}$ and $\texttt{pop}$ operations on the stacks of other workers. If one of the workers runs out of work, the other workers push more work on its stack. Also the recursion in the BDD operations is eliminated by placing the work of a recursive operation on the stack. This looks a bit like the fine-grained parallelism implemented in \cite{dijk2012parallelization}. The algorithm terminates when all stacks become empty.
+
+The researchers used the \emph{ISCAS} benchmark \cite{brglez1985neutral} on a cluster of 32 nodes to test their implementations. Compared to the sequential version, speedups of 20 to 32 were obtained. In some cases however, the BDD did not fit into the memory of the workstation running the sequential implementation, which caused good speedups.
