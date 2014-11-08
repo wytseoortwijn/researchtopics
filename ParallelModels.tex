@@ -84,12 +84,193 @@ The difference between RMA and RDMA is that RDMA requires specialized hardware t
 Another variant is \emph{MVAPICH2-GDR} \cite{Wang:2011:MOG:1997883.1997893}, which makes use of the GPUDirect RDMA technology \cite{gpudirect}. With MVAPICH2-GDR algorithms can be designed to operate on GPU clusters. It would be possible to design heterogeneous algorithms by combining MVAPICH2-X and MVAPICH2-GDR, but this is future work.
 
 \subsection{PGAS Languages}
-A number of PGAS languages exist, including Unified Parallel C (UPC), Co-array Fortran (CAF), Titanium, X10, Chapel, and OpenSHMEM. The languages UPC, CAS, and Titanium are extensions to C, Fortran, and Java, respectively. 
+A number of PGAS languages exist, including Unified Parallel C (UPC), Co-array Fortran (CAF), Titanium, X10, Chapel, and OpenSHMEM. The languages UPC, CAS, and Titanium are extensions to C, Fortran, and Java, respectively. Since we are not planning to work with Fortran or Java, the languages CAS and Titanium are not discussed. 
 
 \subsubsection{APGAS implementations}
-Chapel and X10 are both implementations of the APGAS model \cite{Chamberlain:2007:PPC:1286120.1286123, Charles:2005:XOA:1103845.1094852}. Both are actual programming languages influenced by C++ and Java. These languages provide direct support for PGAS, task management and the dynamic load balancing of tasks. A disadvantage is that both langauges structurally differ from C, so the existing BDD operations written in C all have to be rewritten if X10 or Chapel is used. Also interoperability with LTSmin could be problematic, so these two languages are not used further in this research project.
+Chapel and X10 are both implementations of the APGAS model \cite{Chamberlain:2007:PPC:1286120.1286123, Charles:2005:XOA:1103845.1094852}. Both are actual programming languages influenced by C++ and Java. These languages provide direct support for PGAS, task management and dynamic task load-balancing. A disadvantage is that the structure of both languages differs from C, so all existing BDD operations written in C have to be rewritten to X10 or Chapel if one of these languages is used. Also interoperability with LTSmin (or other existing tools) could be problematic, so these two languages are not discussed in this research project.
 
 \subsubsection{OpenSHMEM}
 OpenSHMEM (Open Shared Memory) is a specification for a standard API for parallel programming in PGAS \cite{openshmem}. Several implementations of OpenSHMEM exist, including an implementation for MVAPICH2-X. The performance of MVAPICH2-X in combination with OpenSHMEM is evaluated in \cite{openshmem_perf_evaluation} and compared to other OpenSHMEM libraries. The experiments were performed on the TACC Stampede cluster \cite{stampede_cluster}. The researchers concluded that this combination delivered best performance and scalability. Especially the atomic and collective operations performed significantly better due to the efficient use of Infiniband hardware. The atomic operations include \texttt{compare-and-swap} and \texttt{fetch-and-add} and the collective operations include \texttt{broadcast}, \texttt{reduce}, \texttt{collect}, and \texttt{barrier}. 
 
-Note that MVAPICH2-X can also be used in combination with UPC. Although this combination is not benchmarked in \cite{openshmem_perf_evaluation}, the benchmarks presented on the MVAPICH2 website point out that UPC performs slightly better.
+MVAPICH2-X can also be used in combination with UPC. Although this combination is not benchmarked in \cite{openshmem_perf_evaluation}, the benchmarks presented on the MVAPICH2 website show that UPC performs slightly better.
+
+\section{Work Stealing}
+Parallelization can be applied by dividing a big problem into smaller tasks so that multiple processes perform work simultaneously. The distribution of these tasks to processes is called \emph{load balancing}. In the ideal case, the work can be split perfectly into $n$ equal parts so that all $n$ processes receive an equal amount of work. In that case a speedup of $n$ can be achieved. However, this can not easily be done in practice, especially when the problem size is initially unknown. A number of different load balancing strategies exist that attempt to maximize speedup.
+
+An efficient method to implement fine-grained task parallelism is \emph{work stealing}. In work stealing each process maintains a local task pool. Processes do not communicate with each other until they run out of tasks. In that case, the process attempts to steal work from other processes, then called \emph{victims}. The program terminates when all processes run out of tasks.
+
+\subsection{Tasks}
+A \emph{task} is a small part of a computation that only depends on its own intermediate \emph{subtasks} for its execution. When executing a task, it can create subtasks and later synchronize on those subtasks to complete the execution. Recursive algorithms can very easily be parallelized by using task-based parallelization, possibly in combination with a sort of cache to avoid redundant work. Since BDD operations are defined recursively, task-based parallelization can very well be applied to parallelize BDD operations, like shown in \cite{sylvan_multicore_bdd}.
+
+Many task-based parallel frameworks like Cilk \cite{blumofe1996cilk}, Wool \cite{faxen2009wool}, and Lace \cite{lace} use the operations \texttt{spawn} and \texttt{sync} to spawn new tasks and synchronize on tasks, respectively. The \texttt{spawn} operation creates a new task and every task must be mached with a \texttt{sync} operation, like tasks are stored on a stack. The \texttt{sync} operation waits until the corresponding task completes and retrieves the results from that task. 
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{int}{\string:}{}
+		\SetKwFunction{fun}{fib}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{while}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+		\Fn{\fun{$n$}} {
+			\textbf{if} $n < 2$ \textbf{return} $n$ \\
+			\textbf{return} \texttt{fib}$(n-1)$ + \texttt{fib}$(n-2)$
+		}
+	\end{algorithm}
+
+	\caption{The original recursive implementation of the Fibonacci function.}
+	\label{fig:fib_seq}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{int}{\string:}{}
+		\SetKwFunction{fun}{par-fib}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{while}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+		\Fn{\fun{$n$}} {
+			\textbf{if} $n < 2$ \textbf{return} $n$ \\
+			\textbf{spawn}$(\texttt{par-fib}, \ n - 1)$ \\
+			\textbf{spawn}$(\texttt{par-fib}, \ n - 2)$ \\
+			$r \gets$ \textbf{sync} \\
+			\textbf{return} $r \ + $ \textbf{sync}
+		}
+	\end{algorithm}
+
+	\caption{The implementation of the Fibonacci function that uses fine-grained task-parallelism.}
+	\label{fig:fib_par}
+\end{figure}
+
+Figure \ref{fig:fib_seq} shows the recursive implementation of the Fibonacci function. This implementation can easily be made parallel by performing the two recursive calls in parallel. Figure \ref{fig:fib_par} shows the same function, but now implemented with fine-grained task-parallelism. The two recursive calls now become subtasks and when both subtasks have completed (i.e. both \textbf{sync} operations yielded a result) the task itself completes. 
+
+\begin{figure}
+	\centering
+	\input{Tikz/deque_1}
+	\caption{The split deque with a head $h$, a tail $t$, and a split point $s$. Here three items are added to the head of the queue and three items to the tail.}
+	\label{fig:deque1}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\input{Tikz/deque_2}
+	\caption{The split deque in which every stolen element $x < t$ is made gray. Furthermore every element $x$ with $t < x < s$ belongs to the private part of the deque and every element $x \geq s$ belongs to the public part.}
+	\label{fig:deque2}
+\end{figure}
+
+\subsection{Split Queues for Work Stealing}
+The task pool can be implemented as a concurrent split deque \cite{lace}. A \emph{double ended queue (deque)} is similar to a queue, but has two ends, namely a head and a tail. Items can be \emph{pushed} and \emph{popped} from both ends of the deque. Unlike a normal queue, the deque does not require a LIFO or FIFO ordering. A \emph{split deque} is a deque that has a split point. Figure \ref{fig:deque1} shows an example of a split deque. The split point $s$ determines which part of the deque belongs to the head and which part to the tail. A head pointer $h$ and tail pointer $t$ determines the head and tail elements of the deque, respectively. A \emph{concurrent split deque} uses the \texttt{compare-and-swap} operation to enqueue and dequeue items from the split deque. 
+
+The split deque can be splitted into a public and a private queue, where $s$ determines the border of the two queues. Every element $x < s$ belongs to the public queue and can be stolen by other processes. Every element $x \geq s$ belongs to the private queue and can only be accessed by the process owning the split deque. By stealing a task, the \emph{thief} pops an item from the public part of the \emph{victims} split deque and moves $t$ by using \texttt{compare-and-swap}. Thus every element $x < t$ is stolen. This is shown in Figure \ref{fig:deque2} where every element displayed in gray is stolen. 
+
+The split point $s$ can be changed by the process owning the split deque. Changing $s$ can be done when the private part of the deque becomes empty or when it becomes very big. Thieves are not allowed to change $s$, since it would require an expensive memory fence. Instead, \cite{lace} suggests that a special flag \texttt{splitreq} is maintained by the process owning the split deque. The \texttt{splitreq} can be changed by thieves via \text{compare-and-swap} and the owner can check this flag before performing a \texttt{push} or \texttt{pop} operation. If the flag is set, the process moves $s$ so that the private part of the deque grows. Furthermore, the public part of the deque can also shrink by moving $s$ further into the public part. In that case, it could happen that $s < t$, which would mean that every element in the public part of the deque is already stolen. This can be avoided by using a \emph{memory fence} when shrinking the public queue.
+
+A small improvement to work stealing is given in \cite{lace}, which suggests the use of an \texttt{allstolen} flag. This flag is set by the process owning the queue when it detects that all tasks in the public queue are stolen. Thieves can check this flag before attempting to steal a task, thus avoiding unnecessarily steal attempts. Also the owner can check this flag before shrinking the public queue in order to avoid unnecessarily shrinking.
+
+\subsection{Victim Selection}
+When a process needs to perform a \texttt{steal} operation, it needs to somehow find a victim. An obvious stategy is to select a victim randomly. Random victim selection appears to perform stable and has nice theoretical properties \cite{Blumofe:1998:PWS:277858.277939}. A disadvantage of random victim selection is that the size of task pools and the work distribution can fluctuate. This has a negative impact on scalability \cite{dinan2009scalable}. Furthermore a skew in the workload may lead to resources being wasted. 
+
+Note that by stealing tasks, the thief performs work for the victim until the stolen task finishes. Now suppose that the victim steals back from the thief. Then the victim performs a part of the work that was stolen from him. This leads to a semi-random strategy called \emph{leapfrogging} \cite{Wagner:1993:LPT:173284.155354}, in which thieves are selected as victims in the process of victim selection. If there are no thieves, or when the thieves do not have any work in their public queue, a random victim is selected. This strategy ensures that the sizes of the task pools are more predictable. For example, Lace is making use of leapfrogging.
+
+Varisteas et al. \cite{varisteas2014dvs} (published in 2014) introduces \emph{deterministic victim selection}, which removes all randomness. In this strategy each worker has a predefined partially ordered set of possible victims. Task distribution is done via a complex policy that achieves a uniform distribution. The researchers observed better scalability and an average performance improvement of $15\%$ compared to Wool.
+
+\subsection{Implementation}
+Simplified algorithms for the \texttt{spawn}, \texttt{sync}, and \texttt{steal} operations are given in \cite{lace}. This paper discusses a concurrent implementation of these operations as well as some improvements, but the simplified versions are enough to discuss the principles of work stealing.
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{def}{\string:}{}
+		\SetKwFunction{fun}{spawn}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{while}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+		\Fn{\fun{$t$}} {
+			\textbf{self}.taskpool.\texttt{push}($t$)
+		}
+	\end{algorithm}
+
+	\caption{A simple implementation of \texttt{spawn} that adds a task $t$ to a local task pool \cite{lace}.}
+	\label{fig:workstealing_spawn}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{def}{\string:}{}
+		\SetKwFunction{fun}{sync}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{while}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+		\Fn{\fun{}} {
+			$\langle s, t \rangle \gets$ \textbf{self}.taskpool.\texttt{pop}() \\
+			\If{$s = $ \textbf{stolen}} {
+				\While{$\neg t$.done} {
+					\texttt{steal-work}($t.thief$)
+				}
+				$\langle s', t' \rangle \gets $ \textbf{self}.taskpool.\texttt{pop-stolen}() \\
+				\Return{$t'$.result}
+			}
+			\textbf{return} $t.$\texttt{execute()}
+		}
+	\end{algorithm}
+
+	\caption{A simple implementation of \texttt{sync} that uses leapfrogging \cite{lace}.}
+	\label{fig:workstealing_sync}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\begin{algorithm}[H]
+		\SetStartEndCondition{ }{}{}%
+		\SetKwProg{Fn}{def}{\string:}{}
+		\SetKwFunction{fun}{steal-work}
+		\SetKw{KwTo}{in}\SetKwFor{For}{for}{\string:}{}%
+		\SetKwIF{If}{ElseIf}{Else}{if}{}{elif}{else}{}%
+		\SetKwFor{While}{while}{:}{fintq}%
+		\SetKw{test}{in}{}%
+		\AlgoDontDisplayBlockMarkers\SetAlgoNoEnd\SetAlgoNoLine%
+
+		\Fn{\fun{$v$}} {
+			$t \gets v$.tasks.\texttt{steal()} \\
+			\If{$\neg(t = \textbf{none})$} {
+				$t$.thief = \textbf{self} \\
+				$t$.result = $t$.\texttt{execute()} \\
+				$t$.done = \textbf{true}
+			}
+		}
+	\end{algorithm}
+
+	\caption{A simple implementation of \texttt{steal-work} that attempts to steal from a victim $v$ \cite{lace}.}
+	\label{fig:workstealing_steal}
+\end{figure}
+
+Figure \ref{fig:workstealing_spawn} shows a simple implementation of \texttt{spawn}. The \texttt{spawn} operation receives a task $t$ as a parameter and the operation adds it to the local taskpool of the executing process. 
+
+Figure \ref{fig:workstealing_sync} shows an implementation of the \texttt{sync} operation. This operation simply pops a task $t$ with status $s$ from the task pool and executes it. If $t$ is a stolen task, the process continuously steals work from $t$s thief until $t$ completes, thus performing leapfrogging. 
+
+Figure \ref{fig:workstealing_steal} shows the implementation of the \texttt{steal-work} operation. First the algorithm steals a task $t$ from a victim $v$. Stealing a task is performed by popping a task from the public (shared) part of $v$. If this succeeds, then $t$ is executed.
+
+\subsection{Related Work}
+Cilk and Wool \cite{blumofe1996cilk, faxen2009wool} are two task-based parallel frameworks. Cilk is a compiler-based framework, since it compiles programs written with Cilk to another form. Wool on the other hand is library-based. Cilk is relatively old (it appeared in 1996), and since the release of Cilk-5 \cite{frigo1998implementation} (appeared in 1998) work stealing can be performed with multiple threads. 
+
+Lace \cite{lace} is a task-based parallel C library that uses non-blocking concurrent split deques. Lace also gives an implementation with private deques, because they solve some of the limitations of concurrent split deques. Experiments show that Lace is competitive with Wool and with the private deque algorithm. The paper also describes \emph{extended leapfrogging} that solves chaining problems that can arrise when using normal leapfrogging.
+
+Palirria \cite{varisteas2014palirria} (published in 2014) is a work-stealing scheduling method for nested fork/join parallelism. Palirria comes with multiple implementations, including an implementation that uses the deterministic victim selection method and an implementation that has a resource estimation algorithm, which replaces the victim selection policy.
