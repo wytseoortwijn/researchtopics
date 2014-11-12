@@ -1,47 +1,47 @@
 \chapter{Project Planning}
 
-This section contains the planning constraints, a description of the different project phases and the actual project planning.
+\textit{This section contains planning constraints, a description of the different project phases and the actual project planning.}
 
 \section{Planning Constraints}
-The following constraits will apply to the project planning.
+The following constraits apply to the project planning.
 
-\subsection{Time constraint.}
-This project will consist of two parts, namely the research topics part and the graduation project part. The research topics part will take 10EC and the graduation project part will take 30EC. Every European Credit (EC) stands for 28 hours, so the total time for for research topics is $10*28 = 280$ hours and for the graduation project $30 * 28 = 840$ hours.
+\subsection{Time Constraint}
+The project consists of two parts, namely the Research Topics part and the graduation project part. The Research Topics part takes about 10EC and the graduation project part takes 30EC in total. Every European Credit (EC) stands for 28 hours, so the total time for Research Topics is $10*28 = 280$ hours and for the graduation project $30 * 28 = 840$ hours.
 
-The graduation project has to be completed within half a year, so 26 weeks. The research topics does not have a fixed time constraint. This time constrait can be elevated a bit, but this requires permission from the project committee. 
+The graduation project has to be completed strictly within half a year, which is 26 weeks. The research topics does not have a fixed time constraint. This time constrait can be elevated a bit, but this requires permission from the project committee. 
 
-\subsection{Unavailability due to work.}
-Wytse will work on the graduation project four days a week. This means that Wytse is unavailable one day a week and this will extend the length of the graduation project to $1.2 * 26 \approx 32$ weeks.
+\subsection{Unavailability due to Work}
+During the research project, Wytse is available for four days a week. This means that Wytse is unavailable one day a week and this extends the length of the graduation project to $1.2 * 26 \approx 32$ weeks.
 
-\subsection{Research Honours program.}
-Wytse is planning to participate in the Research Honours program, which will take an extra $20 EC$ if he succeeds. This will cause the graduation project to take $50 EC$ in total.
+\subsection{Research Honours Programme}
+Wytse is planning to participate in the Research Honours program, which takes an extra $20EC$ if he succeeds. This causes the graduation project to take $50EC$ in total.
 
-Because the planning of the Research Honours program is still unknown, it is not taken into account yet. The planning needs to be adjusted when participation succeeds. This will only cause the planning to stretch a bit, since the core activities do not change.
-
-\subsection{Holidays}
+\subsection{Winter and Summer Holidays}
 The winter holidays, which are two weeks, are excluded from the planning. In case the project takes $50EC$ or more, it will span the summer holidays. In that case the summer holidays are also excluded from the planning.
+
+\subsection{Starting date}
+We make use of the fact that the Research Topics phase does not have a fixed deadline. The prerequisite for starting the project is that software for PGAS/MPI is installed on the cluster, so we do not start with the project until the software is installed. We plan to start the project on November 3, 2014.
+
+\subsection{Date of Completion}
+Unfinished..
 
 \section{Project Phases}
 Below are the different project phases and milestones planned throughout the graduation project. Also a short indication is given of the time it takes to complete the phase.
 
-\subsection{Starting date.}
-The research project will start at November 3, 2014.
+\subsection{Microbenchmarking RDMA}
+One of points mentioned in the project risks section of this report is the possible performance drop when increasing the amount of RDMA-exposed memory. This needs to be tested as early as possible, so the project starts by microbenchmarking the performance of RDMA.  
 
-\subsection{Date of completion.}
-By not taking into account the Research Honours programme, the end date of the project is July 5, 2015. This date is 32 weeks from the starting date, excluding the winter holidays.
+\subsection{Implementing and Microbenchmarking the Distributed Hash Table}
+Developing the distributed hash table on top of MPI/PGAS takes about a month to complete. Microbenchmarking the implementation and discussing the results takes about two weeks. If the experimental results disappoint, some extra time is needed to deal with problems in the implementation.
 
-\subsection{Developing the Distributed Hash Table.}
-The project will start by implementing the distributed hash table. This will take about a month to complete. Microbenchmarking the implementation and discussing the results takes about two weeks. If the experimental results disappoint, some extra time is needed to deal with problems in the implementation.
+\subsection{Implementing and Microbenchmarking the Work Stealing Framework}
+Implementing and testing work stealing also takes a month in total. The scalability of the work stealing framework has to be tested, since it gives an indication of the scalability of the BDD operations. This can be done by performing a microbenchmark. If the benchmark results dissapoint, another work stealing framework can be tried or changes can be applied to the framework.
 
-\subsection{Implementation phase.}
-After having a good implementation of the distributed hash table, a distributed work-stealing protocol needs to be developed. This can be done by making a distributed version of Lace, an existing work-stealing framework made by the University of Twente. This will take about two weeks to implement and test.
+\subsection{Implementing and Benchmarking the BDD operations}
+After having a good implementation of the distributed hash table and a work stealing protocol, the BDD operations have to be implemented. This will take roughly three weeks and benchmarking the BDD operations takes about two weeks.
 
-After that the BDD operations have to be implemented on top of the distributed hash table. This can be done by changing the implementation of Sylvan to work with the distributed hash table and the distributed work-stealing protocol. This will take roughly three weeks.
-
-Benchmarking the implementation and discussing the results will take about two weeks.
-
-\subsection{Finishing the Master Thesis.}
-Some time is reserved just for finishing the master thesis. Note that part of writing the thesis will be done during the other phases.
+\subsection{Finishing the Thesis}
+Some time is reserved just for finishing the master thesis. Note that part of the writing process can be done during the other phases. We are planning to also release a paper on the results of this research project, so also the paper is finished during this phase.
 
 \section{Planning}
 The project planning is presented in Table \ref{tab:planning1} and \ref{tab:planning2}.
@@ -111,3 +111,6 @@ The project planning is presented in Table \ref{tab:planning1} and \ref{tab:plan
 	\caption{Graduation project planning, second part, weeks 18 to 32.}
 	\label{tab:planning2}
 \end{table}
+
+\subsection{Planning Risks}
+Unfinished..

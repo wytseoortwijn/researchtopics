@@ -1,35 +1,80 @@
 \chapter{Measurement Plan}
 
-The research project will have two phases in which measurements will be performed. First we will microbenchmark the implementation of the distributed hash table. Secondly we will benchmark the actual implementation of the BDD operations. Finally we will discuss the results to give an answer to the research questions. If time permits the implementation will be improved and the benchmarks will be run, so that the rate of improvement can be measured. 
+\textit{The research project contains a couple of phases in which measurements are performed. This chapter discusses the experimental setup and the experiments that are to be performed.}
 
-This section provides detailed information about the measurement procedures during the research project.
+\section{Experimental Setup}
+The experiments are performed on ten Intel E5520 dual-core machines connected via an Infiniband network, each with 24GB RAM. The operating system installed on each machine is Ubuntu 14.04 LTS. The Infiniband hardware supports up to 20 Gbps. So the cluster consists of 20 CPU cores and 240GB RAM in total, divided over 10 machines.
 
-\section{Microbenchmarking the Distributed Hash Table}
-After the implementation phase the distributed hash table will be benchmarked. By doing that, the throughput of the hash table can be measured before the actual BDD operations are implemented on it. Measuring the throughput is important since it gives a good indication of how efficient the BDD operations will become. Earlier work pointed out that exposing large regions of memory with RDMA can cause performance drops due to caching problems. These kinds of problems can easily be found by running microbenchmarks.
+Our cluster-based BDD operations can be compared with Sylvan, the multicore parallel BDD package created at the University of Twente. These experiments can be performed on a 48-core machine with 128GB total memory (NUMA), available at the University of Twente. 
 
-The goal is to measure the throughput and latency of the \textit{get} and \textit{put} operations, both on local and remote memory. By doing that the latency of remote operations can be compared to the latency of local operations, so it can be determined how much a bottleneck network latency will be. Such testing can be performed by executing a large number of random \textit{get} or \textit{put} operations. 
+\subsection{Changes in the Setting}
+It seems that the hardware inventory that is publicly available is outdated, so changes may occur in the hardware setting described above. When this happens, the experimental setup section in this document will be updated accordingly.
 
-It is perfectly possible to benchmark throughput and latency while incrementing the number of bytes to send, but it is already known that BDD operations are constant in size, since only a constant number of pointers are involved. So measuring the effect of network latency while increasing package size is unimportant and will thus not be benchmarked.
+\section{Plan of Measurement}
+First the the RDMA operations are benchmarked to test for performance drops. Secondly the implementation of the distributed hash table is to be benchmarked to test the effectiveness of the hashing scheme. Then the work stealing framework has to be microbenchmarked to test the effectiveness of load-balacing in a cluster of multicore computers. Finally the implementation of the BDD operations are to be benchmarked.
 
-Testing the two operations can be combined by using an existing benchmark like \emph{YCSB} in order to simulate actual usage. This gives an indication of how the hash table will perform when it is actually used.
+This section gives a measurements plan for each of these benchmarking phases.
 
-\section{Benchmarking the Implementation}
-At the end of the implementation phase the BDD operations themselves will be benchmarked. This is done by taking several existing large problems from the \emph{BEEM database} and see how well they scale when increasing the number of processing elements as well as the number of participating machines. The following aspects will be included in these measurements.
+\subsection{Microbenchmarking the RDMA operations}
+The first step is to benchmark the one-sided RDMA operations. The researchers of FaRM \cite{farm} found out that performance drops significantly when the amount of memory exposed via RDMA is increased. This is because the NIC caches page tables from main-memory. When the amount of RDMA-exposed memory grows, the number of page tables also grows, which causes the cache to eventually become full. Then more cache pages need to be transfered to the NIC over the PCI bus, which slows performance significantly. 
 
-\begin{itemize}
-\item{The execution time, speedup, and efficiency while increasing the number of clusters and keeping the number of processing elements constant.}
-\item{The execution time, speedup, and efficiency while increasing the number of processing elements and using only a single machine.}
-\item{The execution time, speedup, and efficiency while increasing both the number of processing elements and the number of participating machines.}
-\end{itemize}
+This could be problematic, because we want to create a distributed hash table that is exposed via RDMA. We are not exactly sure if MVAPICH2-X 2.1a solves this problem, but this can be easily tested by running some small tests. Is performance drops when allocating a lot of memory with RDMA, a trick can be used to increase page sizes (FaRM uses a kernel driver called PhyCo), but we would rather not use such tricks.
 
-It is important to take several models from the \emph{BEEM} database that vary in structure. By looking at experiments in other papers it can be observed that some models perform better than others. This is because of their internal structure, of which the algorithm may take advantage. Thus it can be expected that some models gain excellent speedups while others gain almost nothing at all.
+The following experiments are to be applied to test one-sided RDMA operations.
 
-After applying the benchmarks the results will be discussed and improvements will be either applied or noted as future work.
+\begin{enumerate}
+	\item Benchmark the latency of the one-sided \texttt{read}, \texttt{write}, and \texttt{cas} operations by sending a number of RDMA calls to the target machine. Repeat the benchmark for different packet sizes to test the effect of increasing the workload of the RDMA operation.
+	\item Benchmark the throughput of the one-sided \texttt{read}, \texttt{write}, and \texttt{cas} operations by sending a number (say, $100.000$) of RDMA operations to another computer. Repeat the benchmark for different packet sizes to test the effect of increasing the workload of the RDMA operation.
+	\item Benchmark the throughput and latency of the one-sided \texttt{read}, \texttt{write}, and \texttt{cas} operations by increasing the amount of memory exposed via RDMA. Here it is important to access multiple pages, so use a large number (say, $100.000$) of RDMA operations, distributed uniformly (or otherwise randomly) over the entire block of RDMA-exposed memory. This can optionally be combined by increasing the workload of the operations.
+	\item In order to show the significance of one-sided RDMA, some of these experiments could be repeated with a normal TCP connection and the results can be compared to the RDMA-based experiments. If it is to hard to change the code to work with TCP, we could use \emph{RDMA over Converged Ethernet (RoCE)} instead.
+\end{enumerate}
 
-\section{Measuring the Improvements}
-If time permits, improvements can be made based on the benchmarking results. By improving the BDD operations, it is needed to measure the rate of improvement, thus the measurement procedures must be re-applied. Then the two results can be compared in order to measure improvement. The comparison will furthermore be discussed and the process of finding improvements will repeat.
+We do not put too much time in benchmarking the RDMA-operations, but it is important to know if exposing large blocks of memory with RDMA causes performance drops. That is the real important thing here. Measuring performance and throughput under different workloads gives a good indication of how much of a bottleneck the network latency will be. This is not crucial for the research project, but can be used in performance analysis, estimating research expectations and to give improvements on the implementation.
 
-\section{Hardware}
-The experiments are mainly performed on ten Intel E5520 dual-core machines, each with 24GB RAM and connected via an Infiniband network. The OS of each machine is Open-Suse. Thus the cluster consists of 20 CPU cores, 10 machines, and 240GB RAM in total.
+\subsection{Microbenchmarking the Distributed Hash Table}
+After the distributed hash table has been developed, it has to be microbenchmarked. This gives a good performance indication for the BDD operations. Quite some things have to be benchmarked in this phase, since the implementation of a good distributed hash table is the \emph{core component} of the research project. 
 
-The multi-core experiments can also be performed on a 48 core machine with 128GB total memory, available at the University of Twente. 
+First of all, some analysis can be performed to predict the estimated number of network operations that have to be performed by using hash table operations. This can be done by using statistics (i.e. probability theory). We would like to know the following facts, assuming we use the Hopscotch scheme.
+
+\begin{enumerate}
+	\item The expected number of items in a neighborhood under different load-factors and with different neighborhood sizes.
+	\item The expected number of hash collisions under different load-factors and with different neighborhood sizes.
+	\item The expected length of the collisions chain (for more information on collision chains, see the chapter on hash tables) under different load-factors and with different neighborhood sizes.
+\end{enumerate}
+
+Together with the experimental results of the RDMA operations, this analysis can for example greatly help us to determine the most efficient neighborhood size. By then we know the performance of RDMA operations under different workloads as well as the expected number of RDMA reads required, so a performance analysis can also be performed.
+
+Secondly we microbenchmark the implementation of the distributed hash table and we compare the results to our theoretical analysis. This forces us to be critical about the experimental results, which is a good thing. The experiments can be performed by using the \emph{YCSB} benchmark \cite{cooper2010benchmarking}, which is a benchmark provided by Yahoo that tests the performance of key-value stores. The following experiments are to be applied.
+
+\begin{enumerate}
+	\item The latency of the \texttt{get} and \texttt{put} operations, both locally and remotely (i.e. both on local and remote memory) under different load-factors.
+	\item The throughput of the \texttt{get} and \texttt{put} operations, both locally and remotely (i.e. both on local and remote memory) under different load-factors. 
+	\item The average number of RDMA operations performed during a \texttt{get} or \texttt{put} operation under different workloads (i.e. packet sizes).
+	\item The number of times collision chaining occurs upon a \texttt{put} operation (i.e. the element does not fit into the corresponding neighborhood, so an item from the neighborhood has to be replaced), under different load-factors.
+	\item The average number of items in a neighborhood under different load-factors.
+\end{enumerate}
+
+Similarly to the RDMA operation experiments, these experiments can be repeated with TCP (or otherwise RoCE) to show the sigificance of one-sided RDMA. The results on these experiments can be used to improve the implementation of the distributed hash table. If we can improve on the number of RDMA operations, this has to be done. Minimizing the number of RDMA operations is \emph{crucial} for both scalability and speedup of any application built on top of the hash table. 
+
+\subsection{Microbenchmarking the Work Stealing Framework}
+The implementations of the parallel BDD operations described in \cite{sylvan_multicore_bdd, dijk2012parallelization} use a work stealing framework to exploit fine-grained parallelism. Work stealing is also involved in this research project. We are planning to use the Scioto framework \cite{dinan2008scioto} for work stealing in a PGAS environment. The main challenge of creating a work stealing framework for multicore clusters is to exploit locality. It might be beneficial to prefer task stealing from local process over remote process. We would like to test this. Benchmarking can be performed by using the work stealing version of the Fibonacci algorithm. The following experiments are to be performed.
+
+\begin{enumerate}
+	\item The speedup obtained by the work stealing framework by increasing the number of CPU cores on a single machine.
+	\item The speedup obtained by the work stealing framework by increasing the number of machines with the restriction that each machine uses only one CPU core.
+	\item The speedup obtained by scaling both across the number of CPU cores and the number of machines.
+	\item The average number of local steals and remote steals.
+\end{enumerate}
+
+These benchmarkes give a good indication of how well parallelization can be applied in a cluster of multicore machines. With these tests we can predict the performance and scalability of the BDD implemenations a bit.
+
+\subsection{Benchmarking the BDD operations}
+The BDD operations can be built on top of the distributed hash table and the work stealing platform. If both are implemented properly, implementing BDD operations on top of them is not that hard. All the models of the \emph{BEEM} database \cite{pelanek2007beem} can be used to test the implementation. The following experiments are to be performed.
+
+\begin{enumerate}
+	\item The execution time, speedup, and efficiency obtained when increasing the number of CPU cores, while using only a single machine. The results of this experiment can also be used to compare our implementation with other implementations, like Sylvan \cite{sylvan_multicore_bdd}.
+	\item The execution time, speedup, and efficiency obtained when increasing the number of machines with the restriction that each machine uses only a single CPU core.
+	\item The execution time, speedup, and efficiency obtained by scaling both across the number of CPU cores and the number of machines.
+\end{enumerate}
+
+The results of these experiments (and perhaps also the results from earlier experiments) can be used to improve on the implementation. In that case, the plan of measurements must be re-applied. If time runs short, the improvements can be mentioned as future work.

@@ -1,8 +1,9 @@
 \chapter{Detailed Approach}
-This section provides research questions for this problem, as well as the project goals, and the activities that will be performed during the project.
+
+\textit{This section provides research questions, as well as project goals, assumptions, project risks, deliverables, and the activities that are to be performed during the research project.}
 
 \section{Research Questions}
-This research project will attempt to implement BDD operations for multicore clusters. Implementing these operations is not trivial, since ideally both CPU and memory capacity of all participating clusters has to be utilized as efficiently as possible. A perfect solution would split work perfectly across the participating processes such that every processing element only needs to access its own local memory. This however cannot easily be achieved, if possible at all. So the first step in the research project is to find out how to deal with this problem. This raises the following three research questions.
+This research project attempts to implement BDD operations for multicore clusters. Implementing them is not trivial, since ideally both CPU and memory capacity of all participating clusters has to be utilized as efficiently as possible. A perfect solution would split work perfectly across the participating processes such that every processing element only needs to access its own local memory. This however cannot easily be achieved, if possible at all. So the first step in this research project is to find out how to deal with this problem. This raises the following three research questions.
 
 \begin{enumerate}
 	\item[Q.1]{\textit{How can BDDs be spread over all participating clusters so that the memory of all clusters is used efficiently?}}
@@ -10,7 +11,7 @@ This research project will attempt to implement BDD operations for multicore clu
 	\item[Q.3]{\textit{How can load-balancing be implemented such that the number of network operations is minimized?}}
 \end{enumerate}
 
-At the end of the Research Topics phase an answer to these three research questions will be given. The goal of the reseach project is to create an implementation based on the ideas from the Research Topics phase. Several benchmarks can be applied to the implementation in order to determine its efficiency. The following research questions need to be answered after the experimental phase.
+An answer to these three research questions is given in this report. The goal of the graduation project is to implement and benchmark the BDD operations based on the related work given in this report. Benchmarking is done to test the efficiency of the implementation. The following research questions need to be answered after the implementation and benchmarking phase phase.
 
 \begin{enumerate}
 	\item[Q.4]{\textit{How well does the implementation scale across the number of participating CPU cores?}}
@@ -18,9 +19,9 @@ At the end of the Research Topics phase an answer to these three research questi
 	\item[Q.6]{\textit{How can the scalability of the implementation be improved?}}
 \end{enumerate}
 
-If time permits the result of research question \textit{Q.6} can be used to make the implementation more efficient. In that case, the implementation will be improved and the measurement plan will be re-applied to the implementation. Also the answers given to the research questions can be adjusted. If time runs short, the answer of \textit{Q.6} will be marked as future work.
+If time permits the result of research question \textit{Q.6} can be used to make the implementation more efficient. This introduces another iteration of implementation and benchmarking (which requires the measurement plan to be re-applied). Also the answers given to the research questions can be adjusted, based on the results found in the second iteration. If time runs short, improving the implementation can be marked as future work.
 
-At the end of the research project a conclusion will be given based on the experimental results. In this conclusion the following main research question will be answered.
+At the end of the research project a conclusion must be given based on the experimental results, which answers the following main research question. 
 
 \begin{enumerate}
 	\item[Q.7]{\textit{Can BDD operations be implemented to perform efficiently on a cluster of multicore machines?}}
@@ -36,42 +37,48 @@ The second goal is to create a paper out of the results obtained from the resear
 The third goal, which is a personal goal, is to try to obtain a PhD funding during or after the graduation project in order to continue working on heterogeneous algorithms.
 
 \section{Methods and Techniques}
-The implementation will be programmed in the programming language C. The implementation of the distributed hash table will use MVAPICH2-X 2.1a in combination with OpenSHMEM. The implementation of the work-stealing protcol will be an adjusted version of Lace. The implementation of the BDD operations will be an adjusted version of the operations implemented in the multicore BDD package Sylvan.
+The programming language C is used to create the implementation. MVAPICH2-X 2.1a in combination with OpenSHMEM is used as a hybrid PGAS/MPI communication model. For work stealing, the Scioto framework is used. The BDD operations are simply adjusted versions taken from the multicore BDD package Sylvan.
 
-In the experimentation phases of the project, the models from the \emph{BEEM} database are used as well as the microbenchmark \emph{YCSB}.
+Benchmarking the communication model can be done by simply sending and receiving one-sided RDMA operations. The distributed hash table can be microbenchmarked with the \emph{YCSB} benchmark \cite{cooper2010benchmarking}. The work stealing implementation can be tested by running a parallel version of the recursive Fibonacci algorithm. The implementation of the BDD operations can be benchmarked by using the entire \emph{BEEM} database \cite{pelanek2007beem}.
 
 \section{Assumptions}
-Unfinished...
+For this research project it is assumed that a cluster of machines, connected via Infiniband, is available for experimental use at the University of Twente. It is also assumed that MVAPICH2-X 2.1a and OpenSHMEM can be installed on the cluster, so that a hybrid PGAS/MPI model can be created. 
 
 \section{Risks}
-Unfinished...
+If MVAPICH2-X 2.1a can not be installed on the cluster, an alternative framework for PGAS/MPI has to be used. This would be a problem, since MVAPICH2-X 2.1a is, to our observation, the best framework for the hybrid PGAS/MPI model on Infiniband hardware. There are not many other frameworks that support the PGAS/MPI model. We could attempt to use UPC \cite{upc} or OpenSHMEM \cite{openshmem} without MVAPICH2-X 2.1a and use only PGAS. The MPI part can then be done with another message passing framework. This however has impact on the performance of the implementation, since MVAPICH2-X 2.1a is very fast.
+
+If OpenSHMEM can not be installed, UPC can be used instead (and the other way around), so we have two alternatives for the PGAS part. Suppose that OpenSHMEM and UPC both can not be installed, then PGAS can not be used and the project has to switch to bare RDMA instead.
+
+The researchers of FaRM \cite{farm} found out that performance decreased significantly when increasing the amount of RDMA-exposed memory. This is because the Infiniband NIC caches page tables. When the amount of exposed memory increases, the cache runs full and the NIC needs to fetch more page tables over the PCI bus. The researchers solved this by using a low-level package called PhyCo (currently unmaintained and declared dead) to increase page sizes to 2GB. This could also happen to our implementation, so we start the implementation phase by testing if RDMA works properly when scaling the amount of exposed memory. 
+
+\section{Prerequisites}
+Before starting with the graduation project, MVAPICH2-X 2.1a in combination with OpenSHMEM or UPC must be installed on the cluster connected by Infiniband. If this can not be done for some reason, the risk plan described above has to be executed.
 
 \section{Activities}
-The following activities will be performed during the research project.
+The following activities are to be performed during the research project.
 
 \begin{itemize}
-	\item Performing research to find out how BDD operations can efficiently be implemented on a cluster of multicore machines.
-	\item Implementing an RDMA-enabled lockless distributed hash table.
+	\item Performing a literature study to find out how BDD operations can efficiently be implemented on a cluster of multicore machines.
+	\item Implementing an RDMA-based lockless distributed hash table on PGAS.
 	\item Microbenchmarking the distributed hash table.
-	\item Implementing the BDD operations on top of this hash table.
-	\item Implementing a work-stealing protocol that works on a cluster of multicore machines.
-	\item Benchmarking the work-stealing protocol.
-	\item Benchmarking the implementation of the BDD operations and reflecting on them.
-	\item Presenting the results obtained from the experimental phase in a lunch meeting presentation.
-	\item If time permits, implementing some of the possible improvements found in the experimental phase.
+	\item Implementing a work stealing protocol that works on a cluster of multicore machines.
+	\item Microbenchmarking the work-stealing protocol.
+	\item Presenting the results obtained from the experimental phase in an FMT lunch meeting presentation.
+	\item Implementing the BDD operations on top of the distributed hash table.
+	\item Benchmarking the implementation of the BDD operations.
+	\item If time permits, implementing some of the possible improvements found during the experimental phase.
 	\item Finishing the master thesis.
-	\item Performing the master defence.
+	\item Presenting the master thesis.
 	\item Writing the paper containing implementation details and experimental results.
 \end{itemize}
 
-The next section will contain a project planning in which all the activities given above are planned.
-
 \section{Deliverables}
-The research project will result in the following products.
+The activities described in the previous section result in the following deliverables.
 
 \begin{enumerate}
-	\item A literature study in which related work is discussed an in which research questions \textit{Q.1}, \textit{Q.2}, and \textit{Q.3} are answered.
-	\item A, RDMA-based distributed hash table that scales well across the available memory of all participating nodes.
+	\item A literature study in which related work is discussed and research questions \textit{Q.1}, \textit{Q.2}, and \textit{Q.3} are answered.
+	\item A small benchmark to test the latency and throughput of the one-sided RDMA operations.
+	\item An RDMA-based distributed hash table that scales well across the available memory of all participating nodes.
 	\item A report in which the performance of the distributed hash table is evaluated. This report is the result of microbenchmarking the hash table.
 	\item An implementation of the BDD operations that makes use of the distributed hash table.
 	\item An report that evaluates the performance of these BDD operations. This report is the result of the experimental phase of the research project.
