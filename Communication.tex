@@ -1,31 +1,33 @@
 \chapter{Background Information on Network Communication}
 
-\section{The Infiniband Architecture}
-Infiniband is specialized hardware used to construct networks for High-Performance Computing. Infiniband uses all kinds of tricks to achieve very high throughput, including a bidirectional serial bus to keep communication costs as low as possible. In order to support such bus, Infiniband comes with specialized switches and network interface cards (\emph{NICs}). Those interface cards are called \emph{Channel Adapters} in Infiniband terminology. Infiniband is manifactured by Intel and Mellanox and provides hardware for 10, 20, or 40GB bandwidth.
+\textit{In this chapter the Infiniband architecture is discussed, as well as the different components, service types, and operations supported by Infiniband. After that, RDMA is discussed, which is a feature that comes with Infiniband.}
 
-One of the features supported by Infiniband is \emph{Remote Direct Memory Access}, shortened to \emph{RDMA}. By using RDMA one can even further increase throughput. RDMA will be discussed in the next section.
+\section{The Infiniband Architecture}
+Infiniband \cite{infiniband, infiniband2000infiniband} is specialized hardware used to construct high-performance networks. Infiniband uses a bidirectional serial bus to keep communication costs as low as possible. In order to support the serial bus, Infiniband comes with specialized hardware, including switches and \emph{Network Interface Cards (NICs)} \cite{pfister2001introduction}. These NICs are called \emph{Channel Adapters (CAs)} in Infiniband terminology. Infiniband is manifactured by Intel and Mellanox. Bandwidths of 10, 20, and 40 Gbps are currently supported by Infiniband.
+
+One of the features supported by Infiniband is \emph{Remote Direct Memory Access (RDMA)}, which can be used to even further increase the throughput of systems using Infiniband. Infiniband hardware can directly access the main-memory of the host machine, and with RDMA it is possible to remotely access the main-memory of a machine, without invoking its CPU. RDMA is discussed in detail in the next section.
 
 \subsection{Components}
-The network structure of Infiniband differs a bit from the standard Ethernet networking model. A device that is connected to an Infiniband network is called a \emph{node}. Two nodes are connected to each other by so-called \emph{Channel Adapters}, which is the Infiniband counterpart of the network interface card used in Ethernet networks. 
+The network structure of Infiniband differs from the standard Ethernet networking model. A device that is connected to an Infiniband network is called a \emph{node}. Two nodes are connected to each other by so-called \emph{Channel Adapters (CAs)}, which is the Infiniband counterpart of the Network Interface Card used in Ethernet networks. 
 
 \subsection{Queue-based Model}
-On top of the Channel Adapters, Infiniband uses a queue-based model. If two nodes need to communicate to each other, a communication channel between them needs to be set up. Here both nodes must create a \emph{Queuing Pair} consisting of a \emph{Sending Queue} and a \emph{Receiving Queue}. These two queues reside in the memory of the Channel Adapter itself and not in main memory. This allowes the Channel Adapter to handle with incoming messages instead of the CPU, so to support RDMA operations.
+On top of the Channel Adapters, Infiniband uses a queue-based model. If two nodes need to communicate to each other, a communication channel between them needs to be set up. Both nodes must then create a \emph{Queuing Pair}, consisting of a \emph{Sending Queue} and a \emph{Receiving Queue}. These two queues reside in the memory of the Channel Adapter itself and not in main-memory. This allowes the Channel Adapter to handle incoming messages, without needing the help of the OS or the CPU on the host machine. This allowes the use of RDMA.
 
-If a node wants to send a message, it simply places the message on the Send Queue of the Queuing Pair corresponding to the communication channel between the two nodes. The Channel Adapter will pop the message form the queue when it is ready and places it on the Receiving Queue of the receiving node. Then the Channel Adapter of the receiving node can handle the message. 
+If a node wants to send a message, it simply places the message on the Send Queue of the Queuing Pair corresponding to the communication channel between the two nodes. The Channel Adapter pops the message form the queue when it is ready and places it on the Receiving Queue of the receiving node. Then the Channel Adapter of the receiving node can handle the message. 
 
-Completed messages can be placed in the \emph{Completion Queue}. Such queue is present on all nodes and allow workers to be efficiently notified on completed work. 
+Completed messages can be placed in the \emph{Completion Queue}. Such queue is present on all nodes and allow workers to be efficiently notified on completed work. Note that \emph{one-sided} RDMA operations do not use such a completion queue, since the CPU of the target machine is not invoked.
 
 \subsection{Service Types}
-When a Queuing Pair is created, a \emph{Service Type} must be associated to it. The service type determines how a node must respond to incoming messages. There are five types of service types.
+When a Queuing Pair is created, a \emph{Service Type} must be associated to it \cite{pfister2001introduction}. The service type determines how a node should respond to incoming messages. There are five types of service types.
 
 \begin{itemize}
-	\item The \emph{Reliable Connection (RC)} service type guarantees a reliable data transfer between the two nodes. This means that data is guaranteed to arrive at the destination node. This is done by responding with an Ack or Nak packet after receiving a message, which makes it very similar to a TCP connection. Another effect of Reliable Connection is that packets are delivered in order and that erroneous messages are automatically retransmitted.
+	\item The \emph{Reliable Connection (RC)} service type guarantees a reliable data transfer between the two nodes. This means that data is guaranteed to arrive at the destination node. This is done by responding with an \emph{Ack} or \emph{Nak} packet after receiving a message, which makes it very similar to a TCP connection. Another effect of Reliable Connection is that packets are delivered in order and that erroneous messages are automatically retransmitted.
 
-	\item \emph{Unreliable Connection (UC)} specifies a connection between two nodes in which data is not guaranteed to arrive. The responding node does not Ack or Nak each request packet. The advantage compared to a Reliable Connection is that less network traffic is generated and throughput is increased, at the cost of possible packet losses. Also erroneous messages will be disposed rather than retransmitted.
+	\item \emph{Unreliable Connection (UC)} specifies a connection between two nodes in which data is not guaranteed to arrive. The responding node does not \emph{Ack} or \emph{Nak} each request packet. The advantage compared to a Reliable Connection is that less network traffic is generated and throughput is increased, at the cost of possible packet losses. Also erroneous messages are disposed rather than retransmitted.
 
-	\item In the \emph{Unreliable Datagram (RD)} service type no responses are expected, which makes it very similar to an UDP connection. Multicasts are supported, but RDMA and Atomic operations are not.
+	\item In the \emph{Unreliable Datagram (RD)} service type no responses are expected, which makes it very similar to an UDP connection. Multicasts are supported, but RDMA and Atomic operations (like \texttt{compare-and-swap} and \texttt{fetch-and-add}) are not.
 
-	\item \emph{Reliable Datagram (RD)} is similar to \emph{Unreliable Datagram}, but here the responding node does Ack or Nak each request packet. This guarantees that data arrives, thus making the connection reliable.
+	\item \emph{Reliable Datagram (RD)} is similar to \emph{Unreliable Datagram}, but here the responding node does \emph{Ack} or \emph{Nak} each request packet. This guarantees that data arrives, thus making the connection reliable.
 
 	\item Finally the \emph{Raw Datagram} connection is supported, which is similar to \emph{Unreliable Datagram}. Here request packets are not interpreted by the receiving nodes. Like in \emph{Unreliable Datagram} RDMA and Atomic operations are not supported. 
 \end{itemize}
@@ -50,57 +52,51 @@ Table \ref{tab:service_type_capabilities} presents all service types and their c
 \end{table}
 
 \subsection{Supported Operations}
-Like seen in Table \ref{tab:service_type_capabilities} Infiniband supports several types of operations depending on the service type used. A small list of operations supported by Infiniband is given below.
+Like seen in Table \ref{tab:service_type_capabilities} Infiniband supports several types of operations depending on the service type. A small list of operations supported by Infiniband is given below.
 
 \begin{itemize}
-	\item The standard \emph{Send/Receive} operations just involves the standard sending and receiving of messages. The \emph{Send} operation will put a message on the Receiving Queue of the targetted node and the \emph{Receive} operation will poll the Receiving Queue for incoming messages.
+	\item The standard \emph{Send/Receive} operations just involves the standard sending and receiving of messages. The \emph{Send} operation puts a message on the Receiving Queue of the targetted node and the \emph{Receive} operation polls the Receiving Queue for incoming messages.
 
-	\item The \emph{one-sided RDMA} operations do only use the Sending Queue of the Queuing Pairs. If a node wants to execute an one-sided RDMA operation, it simply puts such a work item on its Sending Queue. The Channel Adapter will eventually transmit the work item to the targetted node and are directly executed once received.
+	\item The \emph{one-sided RDMA} operations do only use the Sending Queue of the Queuing Pairs. If a node wants to execute a one-sided RDMA operation, it simply puts the work item on its Sending Queue. The Channel Adapter eventually transmits the work item to the targetted node and are directly executed once received.
 
-	\item The \emph{two-sided RDMA} operations are similar to the one-sided ones, but here the Receiving Queue is used. This means that the CPU of the targetted node has to be used to handle incoming packets, but these operations are still faster than the Send/Receive operations since they bypass the kernel. More on RDMA operations is presented in the next chapter.
+	\item The \emph{two-sided RDMA} operations are similar to the one-sided operations, but the Receiving Queue is also used. This means that the CPU of the targetted node has to be used to handle incoming packets, but these operations are still faster than the Send/Receive operations since they bypass the kernel. More on RDMA operations is presented in the next chapter.
 
-	\item Some of the service types support \emph{Atomic Operations}. There are two types of atomic operations supported by Infiniband, namely \emph{Compare and Swap (CAS)} and the \emph{Atomic Fetch and Add (AFAD)}. 
+	\item Some of the service types support \emph{atomic operations}. There are two types of atomic operations supported by Infiniband, namely \texttt{compare-and-swap} and \texttt{fetch-and-add}. 
 \end{itemize}
 
-In addition to these operations Infiniband also supports transactions and multicast operations. 
+In addition to these operations, Infiniband also supports transactions and multicast operations. 
 
 \subsection{Hardware Costs}
-One of the main advantages of Infiniband is that hardware prices are comparable to their Ethernet counterparts. In fact, at the time of writing, Infiniband hardware is even cheaper. This further motivates the use of Infiniband in High-Performance Computing and for performing research in how such hardware can be used to speed-up exiting distributed algorithms.
-
-\subsection{Hardware Availability}
-The University of Twente currently has ten computing nodes connected via an Infiniband network. The Infiniband Network used is a 20GB bandwidth version. The computing nodes all have a Dual Intel E5520 processor with a clock speed of 2.27GHz and 24GB of internal memory. This makes a total of twenty processing cores and 240GB of combined internal memory. All nodes run with Open-Suse. 
-
+One of the advantages of Infiniband is that hardware prices are comparable to their Ethernet counterparts \cite{pilaf}. In fact, at the time of writing, Infiniband hardware is even cheaper. This further motivates the use of Infiniband in high-performance computing and for performing research in how such hardware can be used to speed-up exiting distributed algorithms. 
 
 \section{Remote Direct Memory Access}
-One of the most interesting features that comes with Infiniband is \emph{RDMA}, which stands for \emph{Remote Direct Memory Access}. With RDMA a
-node can operate on the memory of another node without invoking the Operating System of any of the two nodes. 
+One of the most interesting features of Infiniband is \emph{Remote Direct Memory Access (RDMA)}. With RDMA a node can access the memory of another node, without invoking its CPU or operating system.
 
 \subsection{Zero-Copying}
-Normally when sending a packet over a TCP connection the packet is copied several times. First the packet is copied from user memory into kernel memory, then the packet is send across the network, copied in kernel memory of the receiving node and finally copied into user memory. This also includes three context switches.
+Normally when sending a packet over a TCP connection the packet is copied several times. First the packet is copied from application memory into kernel memory, then the packet is send across the network, copied in kernel memory of the receiving node and finally copied into application memory. This additionally includes three context switches.
 
-In RDMA the network stack is completely bypassed, since packets are directly placed on the Sending Queue in the Channel Adapter. The receiving Channel Adapter will either directly execute the message in case of a one-sided operation or place it on the Receiving Queue when a two-sided operation is used. 
+In RDMA the network stack is completely bypassed, since packets are directly placed on the Sending Queue in the Channel Adapter. The receiving Channel Adapter either directly executes the message in case of a one-sided operation or places it on the Receiving Queue when a two-sided operation is used. 
 
 This greatly reduces latency and increases throughput of network operations compared to the traditional network stack. 
 
 \subsection{One-Sided RDMA}
-One-sided RDMA operations do not invoke the CPU on the targetted node since RDMA messages received are directly executed by the Channel Adapter. The Channel Adapter can directly access main memory, so the Operations System as well as the CPU do not have to be invoked. 
+One-sided RDMA operations do not invoke the CPU on the targetted node since RDMA messages received are directly executed by the Channel Adapter. The Channel Adapter can directly access main memory, so the operating system as well as the CPU do not have to be invoked. 
 
 A one-sided RDMA write operation can directly be executed on the targetted machine. A one-sided read operation on the other hand requires the targetted machine to send an answer back to the source node. The answer is then written to the Completion Queue of the source node. 
 
-Because of the full roundtrip, one-sided RDMA reads are slower than RDMA writes, since they do not need a full roundtrip. Some systems completely avoid RDMA reads and only use writes in order to achieve maximal throughput. Such implementations mostly use circular buffers exposed with RDMA to create a message-passing alternative.
+Because of the full roundtrip, one-sided RDMA reads are slower than RDMA writes, because they do not need a full roundtrip. Some systems completely avoid RDMA reads and only use writes in order to achieve maximal throughput. Such implementations can use circular buffers exposed with RDMA to create a message-passing alternative \cite{farm}.
 
 \subsection{Two-Sided RDMA}
 Like explained earlier, two-sided RDMA operations do use the Receiving Queue of the targetted machines. The workers themselves have to pop work items from the Receiving Queue to process them. This makes two-sided RDMA operations similar to the read and write operations that are supported by Infiniband, but the network stack is still bypassed.
 
-Two-sided operations can be used when the work is more complicated than accessing memory or performing a CAS operation. The targetted node will manually execute the work and most of the benefits of RDMA are still used.
+Two-sided operations can be used when the work is more complicated than accessing memory or performing an atomic memory operation. The targetted node manually executes the work and most of the benefits of RDMA are still used.
 
 \subsection{RDMA over Converged Ethernet}
-A disadvantage of RDMA is that it requires specialized hardware. In order to support RDMA on Ethernet hardware a network protocol called \emph{RDMA over Converged Ethernet}, shortened to \emph{RoCE} is invented. This allowes software systems that are using RDMA to support standard Ethernet hardware. RoCE further increases the motivation to use RDMA in this research project.
+A disadvantage of RDMA is that it requires specialized hardware. In order to support RDMA on Ethernet hardware a network protocol called \emph{RDMA over Converged Ethernet (RoCE)} is invented. This allows software systems using RDMA to support standard Ethernet hardware. RoCE further increases the motivation to use RDMA in this research project.
 
-By using RoCE the Channel Adapters are replaced by NICs which do not have direct access to main memory. So the CPU has to be invoked for every RDMA operation send over RoCE. On the other hand, RoCE still uses the zero-copy policy and the network stack is still bypassed as much as possible, thus making RoCE faster than most other networking protocols implemented over Ethernet.
+By using RoCE the Channel Adapters are replaced by NICs which do not have direct access to the main-memory of the target machine. So with RoCE the CPU has to be invoked for every RDMA operation. On the other hand, RoCE still uses the zero-copy policy and the network stack is still bypassed as much as possible, which makes RoCE faster than most other networking protocols implemented over Ethernet.
 
 \subsection{RDMA over Infiniband}
-In order to support RDMA operations on remote memory, the Channel Adapter needs to be aware of the chunks of memory that are RDMA-exposed. So a block of memory can be registered by the Channel Adapter via the Infiniband interface. An RDMA-registered block of memory is called a \emph{Memory Region}. Every such region has a local and a remote address to be used locally and remotely, respectively. The remote addresses can be translated to local addresses by a table lookup in the Channel Adapter. RDMA operations can thus be performed by using the remote addresses. Transmitting the remote addresses to other nodes can be done by using MPI for example.
+In order to support RDMA operations on remote memory, the Channel Adapter needs to be aware of the chunks of memory that are RDMA-exposed. So a block of memory can be registered by the Channel Adapter via the Infiniband interface. An RDMA-registered block of memory is called a \emph{Memory Region}. Every memory region has a local and a remote address to be used locally and remotely, respectively. The remote addresses can be translated to local addresses by a table lookup in the Channel Adapter. RDMA operations can thus be performed by using the remote addresses. Transmitting the remote addresses to other nodes can be done by using MPI for example.
 
-By registering a memory region at the Channel Adapter, one can also give permissions to that region. Those permissions are managed by a \emph{protection domain}. In a protection domain, one can give node-specific and operation-specific permissions. Every memory region is part of a protection domain.
-
+By registering a memory region at the Channel Adapter, permissions to that region can be given. Those permissions are managed by a \emph{Protection Domain}. In a protection domain, node-specific and operation-specific permissions can be given. Every memory region is part of a protection domain.

@@ -40,6 +40,7 @@ First of all, some analysis can be performed to predict the estimated number of 
 	\item The expected number of items in a neighborhood under different load-factors and with different neighborhood sizes.
 	\item The expected number of hash collisions under different load-factors and with different neighborhood sizes.
 	\item The expected length of the collisions chain (for more information on collision chains, see the chapter on hash tables) under different load-factors and with different neighborhood sizes.
+	\item The probability that a neighborhood gets full.
 \end{enumerate}
 
 Together with the experimental results of the RDMA operations, this analysis can for example greatly help us to determine the most efficient neighborhood size. By then we know the performance of RDMA operations under different workloads as well as the expected number of RDMA reads required, so a performance analysis can also be performed.
