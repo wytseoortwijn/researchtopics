@@ -51,6 +51,8 @@ If OpenSHMEM can not be installed, UPC can be used instead (and the other way ar
 
 The researchers of FaRM \cite{farm} found out that performance decreased significantly when increasing the amount of RDMA-exposed memory. This is because the Infiniband NIC caches page tables. When the amount of exposed memory increases, the cache runs full and the NIC needs to fetch more page tables over the PCI bus. The researchers solved this by using a low-level package called PhyCo (currently unmaintained and declared dead) to increase page sizes to 2GB. This could also happen to our implementation, so we start the implementation phase by testing if RDMA works properly when scaling the amount of exposed memory. 
 
+During an email conversation Enno told me that there were problems with the Infiniband hardware. Enno ran some benchmarks on the hardware using OpenMPI and OpenSHMEM (which is a PGAS implementation) and found an average inter-node latency of $20 \mu s$ for \texttt{get} and \texttt{put} operations. This is more than 10 times higher than the expected latency and the latency mentioned in other scientific work (including the benchmarks presented on the MVAPICH2 website). This is a big problem for the experimental phase, since the performance should be an order of magnitude better. If the hardware cannot be fixed, then the experimental results can not be used in the paper, because they are not good enough to be published.
+
 \section{Prerequisites}
 Before starting with the graduation project, MVAPICH2-X 2.1a in combination with OpenSHMEM or UPC must be installed on the cluster connected by Infiniband. If this can not be done for some reason, the risk plan described above has to be executed.
 

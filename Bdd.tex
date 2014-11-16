@@ -1,9 +1,9 @@
 \chapter{Background Information on Binary Decision Diagrams}
 
-\textit{This chapter provides background information on Binary Decision Diagrams.}
+\textit{This chapter provides background information on Binary Decision Diagrams. Both sequential and parallel implementations of BDD operations are discussed. Furthermore garbage collection is discussed and the ideas of several parallel BDD frameworks are given. }
 
 \section{Preliminaries}
-A Binary Decision Diagram is a data structure used to efficiently represent boolean functions. BDDs were introduced by \cite{akers1978binary} in 1978 to compress large digital (boolean) functions. BDDs were further developed by Bryant \cite{bryant1986graph, bryant1992symbolic} in 1986 and 1992. The following definition is taken from \cite{sylvan_multicore_bdd}:
+A Binary Decision Diagram is a data structure used to efficiently represent Boolean functions. BDDs were introduced by \cite{akers1978binary} in 1978 to compress large digital (Boolean) functions. BDDs were further developed by Bryant \cite{bryant1986graph, bryant1992symbolic} in 1986 and 1992. The following definition is taken from \cite{sylvan_multicore_bdd}:
 
 \begin{definition}
 	An (ordered) Binary Decision Diagram (BDD) is a directed acyclic graph with the following properties:
@@ -15,7 +15,7 @@ A Binary Decision Diagram is a data structure used to efficiently represent bool
 	\end{enumerate}
 \end{definition}
 
-In Figure \ref{fig:bdd_examples} four different simple boolean functions are represented as a BDD. The rectangle-shaped nodes are the terminal nodes $0$ and $1$ and all other nodes represent a variable. Every non-terminal node $p$ has two edges, namely a thick one representing $p[1]$ and a dashed one representing $p[0]$. All paths in the BDD that lead to the terminal node $1$ makes the boolean function represented by the BDD to evaluate to true.
+In Figure \ref{fig:bdd_examples} four different simple Boolean functions are represented as a BDD. The rectangle-shaped nodes are the terminal nodes $0$ and $1$ and all other nodes represent a variable. Every non-terminal node $p$ has two edges, namely a thick one representing $p[1]$ and a dashed one representing $p[0]$. All paths in the BDD that lead to the terminal node $1$ makes the Boolean function represented by the BDD to evaluate to true.
 
 \begin{figure}
 	\centering
@@ -36,13 +36,13 @@ In Figure \ref{fig:bdd_examples} four different simple boolean functions are rep
 		\input{Tikz/bdd_x0_or_x1}
 	}
 	
-	\caption{The BDD representation of four different simple boolean functions are displayed.}
+	\caption{The BDD representation of four different simple Boolean functions are displayed.}
 	\label{fig:bdd_examples}
 \end{figure}
 
-It is possible to represent a set of states $S \subseteq U$ from some universe $U$ by a boolean function $f : S \rightarrow \mathbb{B}$, such that $S = \{ x \in U \ | \ f(x) \}$. If $U = \mathbb{B}^n$, then $f$ is a function with signature $f : \mathbb{B}^n \rightarrow \mathbb{B}$ and so $f$ can be represented as a BDD. 
+It is possible to represent a set of states $S \subseteq U$ from some universe $U$ by a Boolean function $f : S \rightarrow \mathbb{B}$, such that $S = \{ x \in U \ | \ f(x) \}$. If $U = \mathbb{B}^n$, then $f$ is a function with signature $f : \mathbb{B}^n \rightarrow \mathbb{B}$ and so $f$ can be represented as a BDD. 
 
-By applying this trick the state space of some program can efficiently be represented as a BDD. Suppose that the program uses a set of variable names $X = \{ x_1, \dots, x_n \}$ and we have an assignment function $v : X \rightarrow \mathbb{B}$. Then $U = \mathbb{B}^n$ can represent all possible variable assignments under $v$ and $S = \mathbb{B}^n$ represents all reachable states. Now a boolean function $f : S = \mathbb{B}^n \rightarrow \mathbb{B}$ can be given. Suppose that the program uses a transition relation $R \subseteq S \times S$. Then the same trick can be applied again to represent $R$.
+By applying this trick the state space of some program can efficiently be represented as a BDD. Suppose that the program uses a set of variable names $X = \{ x_1, \dots, x_n \}$ and we have an assignment function $v : X \rightarrow \mathbb{B}$. Then $U = \mathbb{B}^n$ can represent all possible variable assignments under $v$ and $S = \mathbb{B}^n$ represents all reachable states. Now a Boolean function $f : S = \mathbb{B}^n \rightarrow \mathbb{B}$ can be given. Suppose that the program uses a transition relation $R \subseteq S \times S$. Then the same trick can be applied again to represent $R$.
 
 We now introduce reduced ordened BDDs.
 
@@ -65,7 +65,7 @@ We now introduce reduced ordened BDDs.
 		\input{Tikz/bdd_reduce_3}
 	}
 	
-	\caption{Three BDD representations of the boolean function $(x_0 \wedge x_1) \vee (\overline{x_0} \wedge x_1)$ (left representation), which is equivalent to $x_1$ (right representation). The rightmost BDD is obtained by removing duplicates and redundant nodes.}
+	\caption{Three BDD representations of the Boolean function $(x_0 \wedge x_1) \vee (\overline{x_0} \wedge x_1)$ (left representation), which is equivalent to $x_1$ (right representation). The rightmost BDD is obtained by removing duplicates and redundant nodes.}
 	\label{fig:bdd_reductions}
 \end{figure}
 
@@ -77,14 +77,14 @@ BDD operations use two tables, namely a \emph{Unique Table} and a \emph{Computed
 Most BDD operations are based on a concept called Shannon decomposition \cite{dijk2012parallelization}, which is defined below.
 
 \begin{definition}[Restriction]
-	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi(x_1, \dots, x_n)$ a boolean formula (i.e. with codomain $\mathbb{B}$). Then the \emph{restriction} of $v$ to $x_i \in X$ in $\phi$, denoted by $\phi_{x_i=v}$, is defined by 
+	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi(x_1, \dots, x_n)$ a Boolean formula (i.e. with codomain $\mathbb{B}$). Then the \emph{restriction} of $v$ to $x_i \in X$ in $\phi$, denoted by $\phi_{x_i=v}$, is defined by 
 	\begin{equation}
 		\phi_{x_i=v} \equiv \phi(x_1, \dots, x_{i - 1}, v, x_{i + 1}, \dots, x_n)
 	\end{equation}
 \end{definition}
 
 \begin{definition}[Shannon Decomposition]
-	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi(x_1, \dots, x_n)$ a boolean formula (i.e. with codomain $\mathbb{B}$). Then the \emph{Shannon decomposition} of $\phi$ along $x \in X$ is defined as
+	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi(x_1, \dots, x_n)$ a Boolean formula (i.e. with codomain $\mathbb{B}$). Then the \emph{Shannon decomposition} of $\phi$ along $x \in X$ is defined as
 	\begin{equation}
 		\phi \equiv (x \wedge \phi_{x=1}) \vee (\overline{x} \wedge \phi_{x=0})
 	\end{equation}
@@ -95,11 +95,11 @@ Many BDD operations are implemented by taking some variable $x$ and recursively 
 Furthermore existential quantification and substitution is needed to implement the \emph{relational product} operation.
 
 \begin{definition}[Existential Quantification]
-	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi$ be a boolean function. Take $x \in X$. Then existential quantification is defined as $\exists x \phi = \phi_{x=0} \vee \phi_{x=1}$. Take $X' = \{ x'_1, \dots, x'_m \} \subseteq X$. Then $\exists X' \phi \equiv \exists x'_1, \dots, \exists x'_m \phi$.
+	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi$ be a Boolean function. Take $x \in X$. Then existential quantification is defined as $\exists x \phi = \phi_{x=0} \vee \phi_{x=1}$. Take $X' = \{ x'_1, \dots, x'_m \} \subseteq X$. Then $\exists X' \phi \equiv \exists x'_1, \dots, \exists x'_m \phi$.
 \end{definition}
 
 \begin{definition}[Substitution]
-	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi$ be a boolean function. Take $x_i, y \in X$. Then substitution is defined by:
+	Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names and $\phi$ be a Boolean function. Take $x_i, y \in X$. Then substitution is defined by:
 	\begin{equation}
 		\phi[x_i \gets y] \equiv \phi(x_1, \dots, x_{i - 1}, y, x_{i + 1}, \dots, x_n)
 	\end{equation}
@@ -116,7 +116,7 @@ Many BDD operations can be expressed with the \texttt{ite} operation (which stan
 \begin{equation}
 	\texttt{ite}(A, B, C) \equiv (A \wedge B) \vee (\overline A \wedge C)
 \end{equation}
-where $A, B, C$ are boolean formulas. Table \ref{tab:ite} shows a number of boolean formulas expressed with the \texttt{ite} operation.
+where $A, B, C$ are Boolean formulas. Table \ref{tab:ite} shows a number of Boolean formulas expressed with the \texttt{ite} operation.
 
 \begin{table}[ht]
 	\centering
@@ -136,7 +136,7 @@ where $A, B, C$ are boolean formulas. Table \ref{tab:ite} shows a number of bool
 		$F \wedge \overline G$ & $\texttt{ite}(F, \overline G, 0)$ \\
 		\hline
 	\end{tabular}
-	\caption{This table shows several boolean formulas expressed with the \texttt{ite} operation. This table is taken from \cite{dijk2012parallelization}.}
+	\caption{This table shows several Boolean formulas expressed with the \texttt{ite} operation. This table is taken from \cite{dijk2012parallelization}.}
 	\label{tab:ite}
 \end{table}
 
@@ -169,7 +169,7 @@ where $A, B, C$ are boolean formulas. Table \ref{tab:ite} shows a number of bool
 	\label{fig:ite_seq}
 \end{figure}
 
-The implementation of the \texttt{ite} function is given in Figure \ref{fig:ite_seq}. Instead of taking three boolean formulas, the implementation takes their BDD representations. The \texttt{in-cache}, \texttt{cache-lookup}, and \texttt{add-to-cache} functions tests if the BDD is in the computed table, gets the BDD from the computed table and adds the BDD to the computed table, respectively.
+The implementation of the \texttt{ite} function is given in Figure \ref{fig:ite_seq}. Instead of taking three Boolean formulas, the implementation takes their BDD representations. The \texttt{in-cache}, \texttt{cache-lookup}, and \texttt{add-to-cache} functions tests if the BDD is in the computed table, retrieves the BDD from the computed table and adds the BDD to the computed table, respectively.
 
 The operations \texttt{low} and \texttt{high} calculate the \emph{cofactor} of their first operand. These two functions are specified as follows:
 \begin{equation}
@@ -184,12 +184,12 @@ The \texttt{mk} function creates a new BDD node and adds it to the unique table.
 \subsection{The \texttt{relprod} operation}
 Binary Decision Diagrams are used in symbolic model checking. An important model checking algorithm is the \emph{reachability} algorithm, which determines the set of all reachable program states, given an initial state and a transition relation. 
 
-Burch et al. \cite{burch1994symbolic} used the \emph{relational product} operation to implement the reachability algorithm, where both the initial state and the transition relation function are represented by boolean functions. The relational product has the form: 
+Burch et al. \cite{burch1994symbolic} used the \emph{relational product} operation to implement the reachability algorithm, where both the initial state and the transition relation function are represented by Boolean functions. The relational product has the form: 
 \begin{equation}
 	\texttt{relprod}(A, B, X) \equiv \exists X. (A \wedge B)
 	\label{eqn:relprod}
 \end{equation}
-where $X$ is a set of variables and $A, B$ are boolean functions.
+where $X$ is a set of variables and $A, B$ are Boolean functions.
 
 Let $X = \{ x_1, \dots, x_n \}$ be a set of variable names. Suppose that $\phi(x_1, \dots, x_n) \equiv \phi(X)$ represent a set of states and $\psi(x_1, \dots, x_n, x'_1, \dots, x'_n) \equiv \psi(X, X')$ represent the transition relation. Then \texttt{relprod} \ref{eqn:relprod} is used to calculate the next set of states $\phi'(X)$ by:
 \begin{equation}

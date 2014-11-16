@@ -1,2 +1,11 @@
 \chapter{Research Expectations}
-Unfinished...
+
+For the distributed hash table, the Hopscotch hashing scheme is used. This hashing scheme ensures that \texttt{get} operations require only a single one-sided RDMA read to complete due to the Hopscotch invariant. One-sided RDMA operations have a latency of approximately $2 \mu s$, so \texttt{get} operations can be performed in only $2 \mu s$. 
+
+The \texttt{put} operation requires a one-sided read and a \emph{compare-and-swap} operation when there is room left in the neighborhood. Otherwise a collision chain occurs, which requires an additional amount of reads and \emph{compare-and-swap} operations equal to the length of the chain. Perhaps some extra operations for locking are required, but the Channel Adapter handles incoming RDMA messages sequentially, which makes concurrent programming a bit easier. Since \texttt{compare-and-swap} also takes about $2 \mu s$, we expect \texttt{put} operations to complete in about $6 \mu s$ without resolving hash collisions.
+
+The Computed Table needed for the BDD operations is a simplified hash table. Hash collisions are resolved simply by overwriting the colliding bucket. Because of that, both the \texttt{get} and \texttt{put} operations for the Computed Table can be completed in about $2 \mu s$. Because every hash table operation requires only a few microseconds to complete, we expect the implementation of the BDD operations to scale well across a cluster of machines.
+
+Despite the low latency of the hash table operations, we still expect the network latency to become a performance bottleneck. Processors can perform a huge amount of CPU instructions in the time a roundtrip is made with RDMA, so we expect that only a part of the available processing power is used. This implies that multicore scalability would decrease with the number of machines added to the cluster.
+
+This can only be solved by exploiting locality. Luckily, work stealing frameworks that expoit locality can be designed. For example, Scioto \cite{dinan2008scioto} exploits locality by using a priority queue, so that local work is prioritized over remote work. Steal attempts are performed on work with low priority. The quality of locality exploitation is very important to effectively combine parallel and distributed computations. We expect that they can effectively be combined, but perhaps not entirely within this research project. If not, then research can be done in locality exploitation for work stealing.

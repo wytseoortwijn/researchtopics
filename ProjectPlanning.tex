@@ -113,4 +113,7 @@ The project planning is presented in Table \ref{tab:planning1} and \ref{tab:plan
 \end{table}
 
 \subsection{Planning Risks}
-Unfinished..
+The most important aspect of this project is the creation and evaluation of a distributed hash table that uses PGAS and one-sided RDMA operations where possible. If the implementation of the distributed hash table takes longer than expected for some reason, the implementation of BDD operations can be omitted. If needed, the paper can also be written after the graduation project.
+
+The implementation of the work stealing protocol can be done ourselves, but if time runs short Scioto \cite{dinan2008scioto} can be used instead. Scioto is a work-stealing framework especially designed for the PGAS model and exploits locality. 
+
